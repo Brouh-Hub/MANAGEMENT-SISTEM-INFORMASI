@@ -1,0 +1,44 @@
+[90m= [39m[34;4mIlluminate\Database\Eloquent\Collection[39;24m {#8731
+    [34mall[39m: [
+      [34;4mApp\Models\User[39;24m {#8737
+        [34mid[39m: [35m1[39m,
+        [34mname[39m: [32m"[39m[32mWaka Humas[39m[32m"[39m,
+        [34mjabatan[39m: [32m"[39m[32mWaka Humas[39m[32m"[39m,
+      },
+      [34;4mApp\Models\User[39;24m {#8743
+        [34mid[39m: [35m2[39m,
+        [34mname[39m: [32m"[39m[32mWaka Sapras[39m[32m"[39m,
+        [34mjabatan[39m: [32m"[39m[32mWaka Sapras[39m[32m"[39m,
+      },
+      [34;4mApp\Models\User[39;24m {#8727
+        [34mid[39m: [35m3[39m,
+        [34mname[39m: [32m"[39m[32mWaka Kesiswaan[39m[32m"[39m,
+        [34mjabatan[39m: [32m"[39m[32mWaka Kesiswaan[39m[32m"[39m,
+      },
+      [34;4mApp\Models\User[39;24m {#8726
+        [34mid[39m: [35m4[39m,
+        [34mname[39m: [32m"[39m[32mKepala Sekolah[39m[32m"[39m,
+        [34mjabatan[39m: [32m"[39m[32mKepala Sekolah[39m[32m"[39m,
+      },
+      [34;4mApp\Models\User[39;24m {#8725
+        [34mid[39m: [35m5[39m,
+        [34mname[39m: [32m"[39m[32mWaka Kurikulum[39m[32m"[39m,
+        [34mjabatan[39m: [32m"[39m[32mWaka Kurikulum[39m[32m"[39m,
+      },
+      [34;4mApp\Models\User[39;24m {#8724
+        [34mid[39m: [35m6[39m,
+        [34mname[39m: [32m"[39m[32mTata Usaha[39m[32m"[39m,
+        [34mjabatan[39m: [32m"[39m[32mTU[39m[32m"[39m,
+      },
+      [34;4mApp\Models\User[39;24m {#8723
+        [34mid[39m: [35m7[39m,
+        [34mname[39m: [32m"[39m[32mPembina OSIS[39m[32m"[39m,
+        [34mjabatan[39m: [32m"[39m[32mPembina OSIS[39m[32m"[39m,
+      },
+      [34;4mApp\Models\User[39;24m {#8722
+        [34mid[39m: [35m8[39m,
+        [34mname[39m: [32m"[39m[32mKoordinator TATA USAHAA[39m[32m"[39m,
+        [34mjabatan[39m: [32m"[39m[32mTU Admin[39m[32m"[39m,
+      },
+    ],
+  }
