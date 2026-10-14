@@ -72,6 +72,31 @@ Route::prefix('admin')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])
             ->name('admin.dashboard');
 
+
+                       // Laporan rekap surat (cetak PDF)
+           Route::get('/laporan/pdf', [DashboardController::class, 'laporanPdf'])
+               ->middleware('jabatan:Kepala Sekolah,Tata Usaha')
+               ->name('laporan.pdf');
+
+                    // =========================================================
+        // DISPOSISI — SEMUA USER YANG LOGIN
+        // =========================================================
+        Route::get('/disposisi-saya', [DisposisiController::class, 'myDisposisi'])
+            ->name('disposisi.saya');
+
+        Route::put('/disposisi-saya/{disposisi}', [DisposisiController::class, 'updateStatus'])
+            ->name('disposisi.update-status');
+
+        Route::get('/disposisi-notifikasi', [DisposisiController::class, 'notifikasi'])
+            ->name('disposisi.notifikasi');
+
+        Route::get('/disposisi/{suratMasuk}/detail', [DisposisiController::class, 'detailSurat'])
+            ->name('disposisi.detail');
+
+        Route::post('/disposisi/{disposisi}/teruskan', [DisposisiController::class, 'teruskan'])
+            ->middleware('jabatan:Kepala Sekolah')
+            ->name('disposisi.teruskan');
+
             // ROUTE DISPOSISI — KHUSUS KEPALA SEKOLAH
 Route::middleware('jabatan:Kepala Sekolah')->group(function () {
     Route::resource('disposisi', DisposisiController::class)
@@ -257,12 +282,6 @@ Route::middleware('jabatan:Tata Usaha,Waka Humas')->group(function () {
     Route::resource('surat-masuk', SuratMasukController::class)
         ->except(['create', 'edit', 'show']);
 
-    Route::post(
-        '/surat-masuk/{id}/disposisikan',
-        [SuratMasukController::class, 'disposisikan']
-    )->name('surat-masuk.disposisikan');
-
-
     // =====================================================
     // SURAT KELUAR
     // =====================================================
@@ -383,10 +402,6 @@ Route::middleware('jabatan:Tata Usaha,Waka Humas')->group(function () {
             Route::post('/surat-masuk/{id}/disposisikan', [SuratMasukController::class, 'disposisikan'])->name('surat-masuk.disposisikan');
 
             // Halaman Tambah Surat Keluar
-            Route::get(
-                '/surat-keluar/create',
-                [SuratKeluarController::class, 'create']
-            )->name('surat-keluar.create');
 
             // Surat keluar: simpan, ubah, hapus
             Route::resource('surat-keluar', SuratKeluarController::class)

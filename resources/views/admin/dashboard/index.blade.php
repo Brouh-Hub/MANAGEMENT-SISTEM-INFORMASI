@@ -18,6 +18,9 @@
 
     .chart-wrap { position: relative; height: 240px; }
 
+    .rekap-box { background:#F5F6FC; border-radius:12px; padding:12px 14px; height:100%; }
+    .rekap-angka { font-size:1.5rem; font-weight:700; display:block; line-height:1.2; }
+
     @media (min-width: 768px) {
         .page-title { font-size: 1.75rem; }
         .stat-card, .card-panel { padding: 20px; }
@@ -172,6 +175,165 @@
     @endif
 
 </div>
+
+{{-- =========================================================
+     LAPORAN REKAP SURAT (Kepala Sekolah & Tata Usaha)
+     ========================================================= --}}
+@if(!empty($laporan))
+<div class="card-panel mb-3 mb-md-4" id="laporan">
+
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+        <div>
+            <h6 class="fw-bold mb-0">Laporan Rekap Surat</h6>
+            <small class="text-muted">
+                Periode {{ $laporanDari->translatedFormat('d M Y') }} – {{ $laporanSampai->translatedFormat('d M Y') }}
+            </small>
+        </div>
+        <a href="{{ route('laporan.pdf', ['dari' => $laporanDari->toDateString(), 'sampai' => $laporanSampai->toDateString()]) }}"
+           target="_blank" class="btn btn-sm btn-primary">
+            <i class="fa fa-print"></i> Cetak PDF
+        </a>
+    </div>
+
+    {{-- Filter periode --}}
+    <form method="GET" action="{{ route('admin.dashboard') }}#laporan" class="row g-2 align-items-end mb-3">
+        <div class="col-6 col-md-3">
+            <label class="form-label small text-muted mb-1">Dari</label>
+            <input type="date" name="dari" value="{{ $laporanDari->toDateString() }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-6 col-md-3">
+            <label class="form-label small text-muted mb-1">Sampai</label>
+            <input type="date" name="sampai" value="{{ $laporanSampai->toDateString() }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-12 col-md-6 d-flex flex-wrap gap-2">
+            <button type="submit" class="btn btn-sm btn-dark">
+                <i class="fa fa-filter"></i> Terapkan
+            </button>
+            @php
+                $preset = [
+                    'Bulan ini' => [now()->startOfMonth(), now()],
+                    'Bulan lalu' => [now()->subMonthNoOverflow()->startOfMonth(), now()->subMonthNoOverflow()->endOfMonth()],
+                    'Tahun ini' => [now()->startOfYear(), now()],
+                ];
+            @endphp
+            @foreach($preset as $label => [$pDari, $pSampai])
+                <a href="{{ route('admin.dashboard', ['dari' => $pDari->toDateString(), 'sampai' => $pSampai->toDateString()]) }}#laporan"
+                   class="btn btn-sm btn-light">{{ $label }}</a>
+            @endforeach
+        </div>
+    </form>
+
+    {{-- Angka ringkas --}}
+    <div class="row g-2 g-md-3 mb-3">
+        <div class="col-6 col-md-3">
+            <div class="rekap-box">
+                <small class="text-muted d-block">Surat Masuk</small>
+                <span class="rekap-angka text-primary">{{ $laporan['total_masuk'] }}</span>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="rekap-box">
+                <small class="text-muted d-block">Surat Keluar</small>
+                <span class="rekap-angka text-success">{{ $laporan['total_keluar'] }}</span>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="rekap-box">
+                <small class="text-muted d-block">Disposisi Selesai</small>
+                <span class="rekap-angka">{{ $laporan['persen_selesai'] }}%</span>
+                <small class="text-muted">dari surat masuk</small>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="rekap-box">
+                <small class="text-muted d-block">Prioritas Tinggi</small>
+                <span class="rekap-angka text-danger">{{ $laporan['prioritas_tinggi'] }}</span>
+                <small class="text-muted">sangat segera / rahasia</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-2 g-md-3">
+
+        {{-- Status surat masuk & keluar --}}
+        <div class="col-12 col-lg-6">
+            <p class="fw-semibold small mb-2">Status Surat Masuk</p>
+            @foreach($laporan['masuk_per_status'] as $label => $jumlah)
+                @php $persen = $laporan['total_masuk'] ? round($jumlah / $laporan['total_masuk'] * 100) : 0; @endphp
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between small">
+                        <span>{{ $label }}</span>
+                        <span class="text-muted">{{ $jumlah }} surat</span>
+                    </div>
+                    <div class="progress" style="height:6px;">
+                        <div class="progress-bar" style="width: {{ $persen }}%; background:#1625C4;"></div>
+                    </div>
+                </div>
+            @endforeach
+
+            <p class="fw-semibold small mb-2 mt-3">Status Surat Keluar</p>
+            @foreach($laporan['keluar_per_status'] as $label => $jumlah)
+                @php $persen = $laporan['total_keluar'] ? round($jumlah / $laporan['total_keluar'] * 100) : 0; @endphp
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between small">
+                        <span>{{ $label }}</span>
+                        <span class="text-muted">{{ $jumlah }} surat</span>
+                    </div>
+                    <div class="progress" style="height:6px;">
+                        <div class="progress-bar bg-success" style="width: {{ $persen }}%;"></div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+
+        {{-- Rekap per bulan + pengirim terbanyak --}}
+        <div class="col-12 col-lg-6">
+            <p class="fw-semibold small mb-2">Rekap per Bulan</p>
+            <div class="table-responsive mb-3">
+                <table class="table table-sm align-middle mb-0" style="font-size:13px;">
+                    <thead>
+                        <tr class="text-muted text-uppercase" style="font-size:11px;">
+                            <th>Bulan</th>
+                            <th class="text-end">Masuk</th>
+                            <th class="text-end">Keluar</th>
+                            <th class="text-end">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($laporan['per_bulan'] as $b)
+                            <tr>
+                                <td>{{ $b['label'] }}</td>
+                                <td class="text-end">{{ $b['masuk'] }}</td>
+                                <td class="text-end">{{ $b['keluar'] }}</td>
+                                <td class="text-end fw-semibold">{{ $b['masuk'] + $b['keluar'] }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                    <tfoot>
+                        <tr class="fw-bold">
+                            <td>Total</td>
+                            <td class="text-end">{{ $laporan['total_masuk'] }}</td>
+                            <td class="text-end">{{ $laporan['total_keluar'] }}</td>
+                            <td class="text-end">{{ $laporan['total_masuk'] + $laporan['total_keluar'] }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <p class="fw-semibold small mb-2">Pengirim Surat Masuk Terbanyak</p>
+            @forelse($laporan['top_pengirim'] as $pengirim => $jumlah)
+                <div class="d-flex justify-content-between small border-bottom py-1">
+                    <span class="text-break me-2">{{ $pengirim }}</span>
+                    <span class="text-muted text-nowrap">{{ $jumlah }} surat</span>
+                </div>
+            @empty
+                <p class="text-muted small mb-0">Tidak ada surat masuk pada periode ini.</p>
+            @endforelse
+        </div>
+
+    </div>
+</div>
+@endif
 
 <div class="card-panel">
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">

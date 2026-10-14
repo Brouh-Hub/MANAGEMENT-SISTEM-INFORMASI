@@ -955,6 +955,8 @@
                         dengan kolom seperti:
 
                         <b>Nama Siswa</b>,
+                        <b>Tempat Lahir</b>,
+                        <b>Tanggal Lahir</b>,
                         <b>Kelas</b>,
                         <b>Program Keahlian</b>,
                         <b>DUDI/Instansi</b>,
@@ -970,7 +972,7 @@
                     <a href="{{ url('admin/sertifikat/siswa/template') }}"
                        class="small">
 
-                        Unduh contoh format (CSV)
+                        Unduh contoh format (XLSX)
 
                     </a>
 

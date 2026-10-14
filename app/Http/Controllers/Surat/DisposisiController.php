@@ -63,7 +63,12 @@ class DisposisiController extends Controller
 
         $penerimaOptions = User::whereNotNull('jabatan')->orderBy('jabatan')->get(['id', 'name', 'jabatan']);
 
-        return view('admin.disposisi.index', compact('penerimaOptions'));
+        // Surat keluar yang sudah diajukan TU dan menunggu persetujuan Kepala Sekolah
+        $suratKeluarMenunggu = SuratKeluar::where('status', 'menunggu_approve')
+            ->latest('id')
+            ->get();
+
+        return view('admin.disposisi.index', compact('penerimaOptions', 'suratKeluarMenunggu'));
     }
 
     // Detail surat masuk (nomor, perihal, url pdf, + id disposisi milik kepala sekolah) untuk modal
@@ -242,13 +247,11 @@ class DisposisiController extends Controller
 
 public function myDisposisi()
 {
-    // Disposisi surat masuk untuk pengguna yang login.
     $disposisi = Disposisi::with('suratMasuk')
         ->where('tujuan_user_id', auth()->id())
         ->latest('id')
         ->get();
 
-    // Surat keluar yang menunggu approval Kepala Sekolah.
     $suratKeluarMenunggu = collect();
 
     if (auth()->user()?->jabatan === 'Kepala Sekolah') {

@@ -162,6 +162,98 @@
     </div>
 </div>
 
+@if(auth()->user()?->jabatan === 'Kepala Sekolah')
+
+    <h4 class="fw-bold mt-4 mb-1">
+        Persetujuan Surat Keluar
+    </h4>
+
+    <p class="text-muted mb-3">
+        Daftar surat keluar dari Tata Usaha yang menunggu persetujuan Anda.
+    </p>
+
+    <div class="card-panel mb-4">
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr class="text-muted text-uppercase"
+                        style="font-size: 11px;">
+                        <th>No</th>
+                        <th>Nomor Surat</th>
+                        <th>Perihal</th>
+                        <th>Tujuan</th>
+                        <th>Tanggal Surat</th>
+                        <th>Status</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @forelse($suratKeluarMenunggu as $i => $surat)
+                        <tr style="font-size: 13px;">
+                            <td>{{ $i + 1 }}</td>
+
+                            <td>{{ $surat->nomor_surat ?? '-' }}</td>
+
+                            <td>{{ $surat->perihal ?? '-' }}</td>
+
+                            <td>{{ $surat->tujuan ?? '-' }}</td>
+
+                            <td>
+                                {{ $surat->tanggal_surat
+                                    ? \Carbon\Carbon::parse($surat->tanggal_surat)->format('d-m-Y')
+                                    : '-' }}
+                            </td>
+
+                            <td>
+                                <span class="badge bg-warning text-dark">
+                                    Menunggu Persetujuan
+                                </span>
+                            </td>
+
+                            <td>
+                                <div class="d-flex gap-2 flex-wrap">
+
+                                    @if($surat->file_path)
+                                        <a
+                                            href="{{ route('surat-keluar.preview', $surat->id) }}"
+                                            target="_blank"
+                                            class="btn btn-sm btn-outline-primary">
+                                            <i class="fa fa-eye"></i>
+                                            Lihat PDF
+                                        </a>
+                                    @else
+                                        <span class="text-muted">
+                                            PDF belum tersedia
+                                        </span>
+                                    @endif
+
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-success btn-approve-surat-keluar"
+                                        data-url="{{ url('admin/surat-keluar/'.$surat->id.'/approve') }}">
+                                        <i class="fa fa-check"></i>
+                                        Setujui
+                                    </button>
+
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="7"
+                                class="text-center text-muted py-4">
+                                Belum ada surat keluar yang menunggu persetujuan.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+@endif
+
 <!-- Modal Detail Surat -->
 <div class="modal fade" id="modalDetailSurat" tabindex="-1">
   <div class="modal-dialog modal-xl">
@@ -260,6 +352,47 @@ $(function () {
         }).fail(function (xhr) {
             alert('Gagal ambil detail surat: ' + (xhr.responseJSON?.message ?? xhr.status));
         });
+    });
+});
+</script>
+@endpush
+
+@push('scripts')
+<script>
+$(document).on('click', '.btn-approve-surat-keluar', function () {
+    const $button = $(this);
+    const url = $button.data('url');
+
+    if (!confirm('Yakin ingin menyetujui surat keluar ini?')) {
+        return;
+    }
+
+    $button
+        .prop('disabled', true)
+        .text('Memproses...');
+
+    $.ajax({
+        url: url,
+        method: 'POST',
+        data: {
+            _token: '{{ csrf_token() }}'
+        },
+
+        success: function (response) {
+            alert(response.message || 'Surat berhasil disetujui.');
+            window.location.reload();
+        },
+
+        error: function (xhr) {
+            alert(
+                xhr.responseJSON?.message ||
+                'Gagal menyetujui surat keluar.'
+            );
+
+            $button
+                .prop('disabled', false)
+                .html('<i class="fa fa-check"></i> Setujui');
+        }
     });
 });
 </script>

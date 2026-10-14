@@ -501,20 +501,122 @@ public function daftarSiswa(Request $request)
 
     public function templateSiswa()
     {
-        $isi =
-            "\xEF\xBB\xBF" .
-            "NIS,Nama,Tempat Lahir,Tanggal Lahir,Kelas,Jurusan,Tempat PKL,Kepala/Pembimbing PKL,Tanggal Mulai,Tanggal Selesai,Keterangan\r\n" .
-            "0001,Contoh Nama Siswa,Tanjungpinang,2008-01-01,XII RPL,Rekayasa Perangkat Lunak,PT Contoh Indonesia,Bapak Pembimbing,2026-01-05,2026-03-31,Selesai PKL\r\n";
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Data Siswa PKL');
 
-        return response(
-            $isi,
-            200,
+        $header = [
+            'No',
+            'NIS',
+            'Nama Siswa',
+            'Tempat Lahir',
+            'Tanggal Lahir',
+            'Kelas',
+            'Program Keahlian',
+            'Nama Pembimbing',
+            'Tempat PKL',
+            'Alamat',
+            'Tanggal Mulai',
+            'Tanggal Selesai',
+            'Keterangan',
+        ];
+
+        // Contoh isi. Pembimbing cukup diisi di baris pertama tiap kelompok,
+        // baris di bawahnya yang kosong otomatis ikut pembimbing di atasnya.
+        $contoh = [
+            [1, '20260001', 'NUR SALSABILA', 'Tanjungpinang', '2008-03-14', 'XII PSPT', 'PSPT', 'M. AMIRUDDIN', 'GOTV NEWS', 'Tanjung Pinang', '2026-07-01', '2026-09-30', 'Selesai'],
+            [2, '20260002', 'SERLI MUJI ASTANTI', 'Bintan', '2008-07-22', 'XII PSPT', 'PSPT', '', 'GOTV NEWS', 'Tanjung Pinang', '2026-07-01', '2026-09-30', 'Selesai'],
+            [3, '20260003', 'MUHAMMAD RIZKY', 'Batam', '2007-11-05', 'XII RPL1', 'RPL', 'BUDI SANTOSO, S.Kom', 'PT Teknologi Nusantara', 'Batam', '2026-07-01', '2026-09-30', 'Selesai'],
+        ];
+
+        $kolomTerakhir = 'M';
+        $barisHeader = 3;
+
+        // Baris 1: judul
+        $sheet->setCellValue('A1', 'DAFTAR DATA SISWA PKL');
+        $sheet->mergeCells('A1:' . $kolomTerakhir . '1');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A1')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+
+        // Baris 3: header
+        $sheet->fromArray($header, null, 'A' . $barisHeader);
+
+        $rangeHeader = 'A' . $barisHeader . ':' . $kolomTerakhir . $barisHeader;
+        $sheet->getStyle($rangeHeader)->getFont()->setBold(true);
+        $sheet->getStyle($rangeHeader)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle($rangeHeader)->getFill()
+            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setRGB('DDEBF7');
+
+        // Isi contoh
+        $kolomTanggal = [4, 10, 11]; // index: Tanggal Lahir, Tanggal Mulai, Tanggal Selesai
+
+        foreach ($contoh as $r => $baris) {
+            $nomorBaris = $barisHeader + 1 + $r;
+
+            foreach ($baris as $c => $nilai) {
+                $koordinat = [$c + 1, $nomorBaris];
+
+                if (in_array($c, $kolomTanggal, true)) {
+                    $sheet->setCellValue(
+                        $koordinat,
+                        \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel(
+                            new \DateTime($nilai)
+                        )
+                    );
+                } elseif ($c === 1) {
+                    // NIS sebagai teks supaya angka 0 di depan tidak hilang
+                    $sheet->setCellValueExplicit(
+                        $koordinat,
+                        $nilai,
+                        \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING
+                    );
+                } else {
+                    $sheet->setCellValue($koordinat, $nilai);
+                }
+            }
+        }
+
+        // Format kolom: NIS teks, kolom tanggal dd-mm-yyyy (sampai baris 500)
+        $sheet->getStyle('B4:B500')->getNumberFormat()
+            ->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
+
+        foreach (['E', 'K', 'L'] as $kolom) {
+            $sheet->getStyle($kolom . '4:' . $kolom . '500')->getNumberFormat()
+                ->setFormatCode('dd-mm-yyyy');
+        }
+
+        // Garis tabel
+        $barisAkhir = $barisHeader + count($contoh);
+        $sheet->getStyle('A' . $barisHeader . ':' . $kolomTerakhir . $barisAkhir)
+            ->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+
+        // Lebar kolom (mengikuti format data siswa PKL)
+        $lebar = [
+            'A' => 7, 'B' => 14, 'C' => 26, 'D' => 18, 'E' => 15,
+            'F' => 14, 'G' => 20, 'H' => 25, 'I' => 28, 'J' => 25,
+            'K' => 17, 'L' => 17, 'M' => 18,
+        ];
+
+        foreach ($lebar as $kolom => $w) {
+            $sheet->getColumnDimension($kolom)->setWidth($w);
+        }
+
+        $sheet->freezePane('A' . ($barisHeader + 1));
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+
+        return response()->streamDownload(
+            function () use ($writer) {
+                $writer->save('php://output');
+            },
+            'template-import-siswa-pkl.xlsx',
             [
                 'Content-Type' =>
-                    'text/csv; charset=UTF-8',
-
-                'Content-Disposition' =>
-                    'attachment; filename="template-import-siswa-pkl.csv"',
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             ]
         );
     }
@@ -523,34 +625,72 @@ public function daftarSiswa(Request $request)
     |--------------------------------------------------------------------------
     | NORMALISASI TANGGAL
     |--------------------------------------------------------------------------
+    |
+    | Format yang didukung:
+    | - Angka serial Excel        : 39459
+    | - 12-01-2008 / 12/01/2008 / 12.01.2008  (hari-bulan-tahun)
+    | - 2008-01-12                 (tahun-bulan-hari)
+    | - 12 Januari 2008 / 12 Jan 2008 / 12 January 2008
+    |
     */
 
     private function normalisasiTanggalImport(
         $value
     ): ?string {
 
-        if (
-            $value === null ||
-            trim((string) $value) === ''
-        ) {
+        $value = trim((string) $value);
+
+        if ($value === '' || $value === '-') {
             return null;
         }
 
         try {
 
+            // Angka serial Excel
             if (is_numeric($value)) {
-
-                return Carbon::create(
-                    1899,
-                    12,
-                    30
-                )
+                return Carbon::create(1899, 12, 30)
                     ->addDays((int) $value)
                     ->format('Y-m-d');
             }
 
-            return Carbon::parse($value)
-                ->format('Y-m-d');
+            // Tahun di depan: 2008-01-12 / 2008/01/12
+            if (preg_match('/^(\d{4})[\-\/\.](\d{1,2})[\-\/\.](\d{1,2})$/', $value, $m)) {
+                return checkdate((int) $m[2], (int) $m[3], (int) $m[1])
+                    ? sprintf('%04d-%02d-%02d', $m[1], $m[2], $m[3])
+                    : null;
+            }
+
+            // Hari di depan (format Indonesia): 12-01-2008 / 12/01/2008 / 12.01.2008
+            if (preg_match('/^(\d{1,2})[\-\/\.](\d{1,2})[\-\/\.](\d{2,4})$/', $value, $m)) {
+                $tahun = (int) $m[3];
+
+                if ($tahun < 100) {
+                    $tahun += $tahun > (int) date('y') ? 1900 : 2000;
+                }
+
+                return checkdate((int) $m[2], (int) $m[1], $tahun)
+                    ? sprintf('%04d-%02d-%02d', $tahun, $m[2], $m[1])
+                    : null;
+            }
+
+            // Nama bulan Indonesia → Inggris, lalu biarkan Carbon yang membaca
+            $bulan = [
+                'januari' => 'january', 'februari' => 'february', 'pebruari' => 'february',
+                'maret' => 'march', 'april' => 'april', 'mei' => 'may',
+                'juni' => 'june', 'juli' => 'july', 'agustus' => 'august',
+                'september' => 'september', 'oktober' => 'october',
+                'november' => 'november', 'nopember' => 'november',
+                'desember' => 'december',
+                'agt' => 'aug', 'agu' => 'aug', 'okt' => 'oct', 'des' => 'dec',
+            ];
+
+            $teks = mb_strtolower($value);
+
+            foreach ($bulan as $id => $en) {
+                $teks = preg_replace('/\b' . $id . '\b/u', $en, $teks);
+            }
+
+            return Carbon::parse($teks)->format('Y-m-d');
 
         } catch (Exception $e) {
 
@@ -766,6 +906,32 @@ public function importSiswa(Request $request)
         'keterangan' => $cari([
             'keterangan',
             'ket',
+        ]),
+
+        // Data kelahiran siswa (opsional)
+        'tempat_lahir' => $cari([
+            'tempat lahir',
+            'tempat lahir siswa',
+            'tmp lahir',
+            'tmp. lahir',
+        ]),
+
+        'tanggal_lahir' => $cari([
+            'tanggal lahir',
+            'tgl lahir',
+            'tgl. lahir',
+            'tanggal lahir siswa',
+        ]),
+
+        // Gabungan, contoh isi: "Tanjungpinang, 12 Januari 2008"
+        'ttl' => $cari([
+            'ttl',
+            'tempat, tanggal lahir',
+            'tempat tanggal lahir',
+            'tempat/tanggal lahir',
+            'tempat / tanggal lahir',
+            'tempat / tgl. lahir',
+            'tempat/tgl lahir',
         ]),
     ];
 
@@ -983,6 +1149,80 @@ public function importSiswa(Request $request)
 
         /*
         |--------------------------------------------------------------------------
+        | TEMPAT & TANGGAL LAHIR
+        |--------------------------------------------------------------------------
+        |
+        | Bisa dari kolom terpisah (Tempat Lahir, Tanggal Lahir)
+        | atau dari satu kolom TTL: "Tanjungpinang, 12 Januari 2008".
+        |
+        */
+        $tempatLahir =
+            $nilai('tempat_lahir');
+
+        $tanggalLahirMentah =
+            $nilai('tanggal_lahir');
+
+        $ttl =
+            $nilai('ttl');
+
+        if (
+            $ttl !== ''
+            &&
+            ($tempatLahir === '' || $tanggalLahirMentah === '')
+        ) {
+            $posisiKoma = mb_strrpos($ttl, ',');
+
+            if ($posisiKoma !== false) {
+                $tempatDariTtl = trim(mb_substr($ttl, 0, $posisiKoma));
+                $tanggalDariTtl = trim(mb_substr($ttl, $posisiKoma + 1));
+            } else {
+                $tempatDariTtl = '';
+                $tanggalDariTtl = $ttl;
+            }
+
+            if ($tempatLahir === '') {
+                $tempatLahir = $tempatDariTtl;
+            }
+
+            if ($tanggalLahirMentah === '') {
+                $tanggalLahirMentah = $tanggalDariTtl;
+            }
+        }
+
+        $tanggalLahir =
+            $this->normalisasiTanggalImport(
+                $tanggalLahirMentah
+            );
+
+        // Tolak tanggal lahir yang tidak masuk akal
+        // (misal angka asal "1" / "111" yang dibaca Excel sebagai tahun 1900).
+        if (
+            $tanggalLahir !== null
+            &&
+            (
+                $tanggalLahir < '1950-01-01'
+                ||
+                $tanggalLahir > now()->format('Y-m-d')
+            )
+        ) {
+            $tanggalLahir = null;
+        }
+
+        if (
+            $tanggalLahirMentah !== ''
+            &&
+            $tanggalLahir === null
+        ) {
+            $hasil['catatan'][] =
+                'Baris ' .
+                ($no + 2) .
+                ': Tanggal lahir "' .
+                $tanggalLahirMentah .
+                '" tidak dikenali, dikosongkan.';
+        }
+
+        /*
+        |--------------------------------------------------------------------------
         | CARI SISWA
         |--------------------------------------------------------------------------
         */
@@ -1118,6 +1358,16 @@ public function importSiswa(Request $request)
                     $nis;
             }
 
+            if ($tempatLahir !== '') {
+                $dataSiswaBaru['tempat_lahir'] =
+                    $tempatLahir;
+            }
+
+            if ($tanggalLahir !== null) {
+                $dataSiswaBaru['tanggal_lahir'] =
+                    $tanggalLahir;
+            }
+
             $siswa =
                 Siswa::create(
                     $dataSiswaBaru
@@ -1149,6 +1399,18 @@ public function importSiswa(Request $request)
 
                 $dataSiswa['jurusan'] =
                     $jurusanBaku;
+            }
+
+            // Isi/perbarui data lahir hanya kalau kolomnya diisi di file,
+            // supaya data lama tidak terhapus oleh sel kosong.
+            if ($tempatLahir !== '') {
+                $dataSiswa['tempat_lahir'] =
+                    $tempatLahir;
+            }
+
+            if ($tanggalLahir !== null) {
+                $dataSiswa['tanggal_lahir'] =
+                    $tanggalLahir;
             }
 
             if (
@@ -1666,6 +1928,27 @@ public function importSiswa(Request $request)
     |--------------------------------------------------------------------------
     */
 
+    /*
+    | Sel Excel yang berformat tanggal diubah formatnya ke yyyy-mm-dd
+    | sebelum dibaca, supaya tidak tertukar hari/bulan (format Amerika).
+    */
+    private function seragamkanFormatTanggal($sheet): void
+    {
+        foreach ($sheet->getCoordinates() as $koordinat) {
+            $cell = $sheet->getCell($koordinat);
+
+            if (
+                is_numeric($cell->getValue())
+                &&
+                \PhpOffice\PhpSpreadsheet\Shared\Date::isDateTime($cell)
+            ) {
+                $sheet->getStyle($koordinat)
+                    ->getNumberFormat()
+                    ->setFormatCode('yyyy-mm-dd');
+            }
+        }
+    }
+
     private function bacaExcel($file): array
 {
     $spreadsheet =
@@ -1700,6 +1983,8 @@ public function importSiswa(Request $request)
         if (!$sheet) {
             continue;
         }
+
+        $this->seragamkanFormatTanggal($sheet);
 
         $rows = $sheet->toArray(
             null,
@@ -1796,6 +2081,8 @@ public function importSiswa(Request $request)
         as $sheet
     ) {
 
+        $this->seragamkanFormatTanggal($sheet);
+
         $rows = $sheet->toArray(
             null,
             true,
@@ -1828,6 +2115,12 @@ public function importSiswa(Request $request)
             if (
                 in_array(
                     'nama siswa',
+                    $isi,
+                    true
+                )
+                ||
+                in_array(
+                    'nama',
                     $isi,
                     true
                 )
