@@ -22,7 +22,8 @@
                 <div class="modal-body">
                     <div class="mb-2">
                         <label class="form-label">{{ $label('nomor_surat', 'Nomor Surat') }}</label>
-                        <input type="text" id="update-nomor_surat" name="nomor_surat" class="form-control">
+                        <input type="text" id="update-nomor_surat" class="form-control bg-light" readonly title="Nomor surat tidak bisa diubah">
+                        <small class="text-muted" style="font-size:11px;">Nomor surat dibuat sistem dan tidak bisa diubah.</small>
                         <small class="text-danger error-msg" id="update-error-nomor_surat"></small>
                     </div>
                     <div class="mb-2">
@@ -78,23 +79,47 @@
 
 <!-- Modal Detail (read-only) -->
 <div class="modal fade" id="modal-detail">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Detail Surat Keluar</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <table class="table table-borderless" style="font-size:14px;">
-                    <tr><td class="text-muted" width="160">{{ $label('nomor_surat', 'Nomor Surat') }}</td><td id="detail-nomor_surat"></td></tr>
-                    <tr><td class="text-muted">{{ $label('perihal', 'Perihal') }}</td><td id="detail-perihal"></td></tr>
-                    <tr><td class="text-muted">{{ $label('tujuan', 'Tujuan') }}</td><td id="detail-tujuan"></td></tr>
-                    <tr><td class="text-muted">{{ $label('alamat_tujuan', 'Alamat Tujuan') }}</td><td id="detail-alamat_tujuan"></td></tr>
-                    <tr><td class="text-muted">{{ $label('keterangan', 'Keterangan') }}</td><td id="detail-keterangan"></td></tr>
-                    <tr><td class="text-muted">{{ $label('tanggal_surat', 'Tanggal Surat') }}</td><td id="detail-tanggal_surat"></td></tr>
-                    {{-- baris field custom disisipkan lewat JS sebelum baris Status --}}
-                    <tr id="detail-status-row"><td class="text-muted">Status</td><td id="detail-status"></td></tr>
-                </table>
+                <div class="row g-3">
+
+                    {{-- Preview PDF surat --}}
+                    <div class="col-lg-7">
+                        <div id="detail-preview"
+                             class="border rounded-3 bg-light d-flex align-items-center justify-content-center overflow-hidden"
+                             style="height:600px;"></div>
+
+                        <div class="d-flex justify-content-end gap-2 mt-2" id="detail-file-actions" style="display:none !important;">
+                            <a href="#" target="_blank" id="detail-file-open" class="btn btn-sm btn-light">
+                                <i class="fa fa-up-right-from-square"></i> Buka di tab baru
+                            </a>
+                            <a href="#" id="detail-file-download" class="btn btn-sm btn-light">
+                                <i class="fa fa-download"></i> Unduh
+                            </a>
+                        </div>
+                    </div>
+
+                    {{-- Data surat --}}
+                    <div class="col-lg-5">
+                        <table class="table table-borderless" style="font-size:14px;">
+                            <tr><td class="text-muted" width="140">{{ $label('nomor_surat', 'Nomor Surat') }}</td><td id="detail-nomor_surat"></td></tr>
+                            <tr><td class="text-muted">{{ $label('perihal', 'Perihal') }}</td><td id="detail-perihal"></td></tr>
+                            <tr><td class="text-muted">{{ $label('tujuan', 'Tujuan') }}</td><td id="detail-tujuan"></td></tr>
+                            <tr><td class="text-muted">{{ $label('alamat_tujuan', 'Alamat Tujuan') }}</td><td id="detail-alamat_tujuan"></td></tr>
+                            <tr><td class="text-muted">{{ $label('keterangan', 'Keterangan') }}</td><td id="detail-keterangan"></td></tr>
+                            <tr><td class="text-muted">{{ $label('tanggal_surat', 'Tanggal Surat') }}</td><td id="detail-tanggal_surat"></td></tr>
+                            {{-- baris field custom disisipkan lewat JS sebelum baris Status --}}
+                            <tr id="detail-status-row"><td class="text-muted">Status</td><td id="detail-status"></td></tr>
+                            <tr><td class="text-muted">Kepala TU</td><td id="detail-konfirmasi" style="white-space:pre-line;"></td></tr>
+                        </table>
+                    </div>
+
+                </div>
             </div>
         </div>
     </div>

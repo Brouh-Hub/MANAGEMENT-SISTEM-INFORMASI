@@ -6,7 +6,7 @@
     <style>
         @page {
             size: A4 portrait;
-            margin: 20mm 20mm 20mm 20mm;
+            margin: 12mm 20mm 12mm 25mm;
         }
 
         * {
@@ -17,7 +17,7 @@
             margin: 0;
             padding: 0;
             color: #000;
-            font-family: "Times New Roman", DejaVu Serif, serif;
+            font-family: "Times New Roman", Times, serif;
             font-size: 12pt;
             line-height: 1.4;
         }
@@ -29,6 +29,10 @@
 
         table {
             border-collapse: collapse;
+        }
+
+        td {
+            vertical-align: top;
         }
 
         img {

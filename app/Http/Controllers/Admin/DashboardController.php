@@ -144,7 +144,7 @@ class DashboardController extends Controller
             ->values();
 
         // Laporan rekap (hanya Kepala Sekolah & Tata Usaha)
-        $bisaLihatLaporan = in_array($user->jabatan, ['Kepala Sekolah', 'Tata Usaha'], true);
+        $bisaLihatLaporan = in_array($user->jabatan, ['Kepala Sekolah', 'Tata Usaha', 'Kepala Tata Usaha'], true);
         [$dari, $sampai] = $this->periodeLaporan($request);
 
         $laporan = $bisaLihatLaporan
@@ -184,7 +184,7 @@ class DashboardController extends Controller
     public function laporanPdf(Request $request)
     {
         abort_unless(
-            in_array(auth()->user()->jabatan, ['Kepala Sekolah', 'Tata Usaha'], true),
+            in_array(auth()->user()->jabatan, ['Kepala Sekolah', 'Tata Usaha', 'Kepala Tata Usaha'], true),
             403
         );
 
@@ -248,19 +248,33 @@ class DashboardController extends Controller
 
         // Status surat masuk diambil dari disposisi terakhirnya
         $statusMasuk = function ($surat) {
+            // Belum lolos konfirmasi Kepala Tata Usaha
+            if (($surat->status_konfirmasi ?? 'disetujui') === 'menunggu') {
+                return 'Menunggu Kepala TU';
+            }
+            if (($surat->status_konfirmasi ?? null) === 'dikembalikan') {
+                return 'Dikembalikan ke TU';
+            }
+
             $terakhir = $surat->disposisi->sortByDesc('id')->first();
 
             return match ($terakhir->status ?? null) {
-                'selesai'                => 'Selesai',
-                'diproses', 'diteruskan' => 'Diproses',
-                default                  => 'Menunggu Disposisi',
+                'selesai'                            => 'Selesai',
+                'diterima', 'diproses', 'diteruskan' => 'Diproses',
+                'diarsipkan'                         => 'Diarsipkan',
+                'ditolak'                            => 'Ditolak',
+                default                              => 'Menunggu Disposisi',
             };
         };
 
         $masukPerStatus = [
+            'Menunggu Kepala TU' => 0,
+            'Dikembalikan ke TU' => 0,
             'Menunggu Disposisi' => 0,
             'Diproses'           => 0,
             'Selesai'            => 0,
+            'Diarsipkan'         => 0,
+            'Ditolak'            => 0,
         ];
 
         $prioritasTinggi = 0;
@@ -275,11 +289,7 @@ class DashboardController extends Controller
             }
         }
 
-        $labelKeluar = [
-            'draft'            => 'Draft',
-            'menunggu_approve' => 'Menunggu Persetujuan',
-            'terbit'           => 'Disetujui',
-        ];
+        $labelKeluar = SuratKeluar::STATUS;
 
         $keluarPerStatus = array_fill_keys(array_values($labelKeluar), 0);
 
@@ -333,7 +343,10 @@ class DashboardController extends Controller
                 'nomor'   => $s->nomor_surat,
                 'pihak'   => $s->pengirim,
                 'perihal' => $s->perihal,
-                'status'  => $statusMasuk($s),
+                'status'  => $statusMasuk($s)
+                    . (($alasan = $s->status_konfirmasi === 'dikembalikan'
+                        ? $s->alasan_konfirmasi
+                        : $s->disposisi->sortByDesc('id')->first()?->alasan) ? ' – ' . $alasan : ''),
             ]);
 
             $hasil['daftar_keluar'] = $suratKeluar->map(fn ($s) => [
@@ -341,7 +354,8 @@ class DashboardController extends Controller
                 'nomor'   => $s->nomor_surat,
                 'pihak'   => $s->tujuan,
                 'perihal' => $s->perihal,
-                'status'  => $labelKeluar[$s->status] ?? '-',
+                'status'  => ($labelKeluar[$s->status] ?? '-')
+                    . ($s->status === 'dikembalikan' && $s->alasan_konfirmasi ? ' – ' . $s->alasan_konfirmasi : ''),
             ]);
         }
 

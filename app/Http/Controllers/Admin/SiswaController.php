@@ -429,7 +429,6 @@ return response()->json([
     'message' => 'Import gagal: ' . $e->getMessage(),
 ], 422);
 }
-22
 }
 
 private function kolomImportSiswa(array $header): array

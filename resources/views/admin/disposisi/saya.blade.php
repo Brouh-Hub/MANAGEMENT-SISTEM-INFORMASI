@@ -1,4 +1,5 @@
 @extends('layouts.main')
+@php $title = $title ?? 'Disposisi Saya'; @endphp
 @section('content')
 
 <style>
@@ -58,6 +59,31 @@
         box-shadow: 0 8px 18px rgba(27,138,62,.38);
     }
 
+    /* Terima: outline biru */
+    .btn-aksi-terima {
+        background: #fff;
+        color: #1625C4;
+        border-color: #1625C4;
+    }
+    .btn-aksi-terima:hover {
+        background: #1625C4;
+        color: #fff;
+        box-shadow: 0 6px 14px rgba(22,37,196,.25);
+    }
+
+    /* Penanda belum dibaca */
+    .dot-baru {
+        display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+        background: #E53E3E; margin-right: 6px; vertical-align: middle;
+    }
+    .row-baru { background: #FFF8F8; }
+
+    /* Kotak laporan hasil */
+    .laporan-box {
+        background: #F5F6FC; border-radius: 12px; padding: 12px 14px;
+        font-size: 13px; white-space: pre-line;
+    }
+
     /* Sudah selesai */
     .aksi-done {
         display: inline-flex;
@@ -101,10 +127,13 @@
             </thead>
             <tbody>
                 @forelse($disposisi as $i => $d)
-                    <tr style="font-size:13px;">
+                    <tr style="font-size:13px;" class="{{ $d->dibaca_at ? '' : 'row-baru' }}">
                         <td>{{ $i + 1 }}</td>
                         <td>{{ $d->suratMasuk->nomor_surat ?? '-' }}</td>
-                        <td>{{ $d->suratMasuk->perihal ?? '-' }}</td>
+                        <td>
+                            @if(!$d->dibaca_at)<span class="dot-baru" title="Belum dibaca"></span>@endif
+                            {{ $d->suratMasuk->perihal ?? '-' }}
+                        </td>
                         <td>
                             @php
                                 $sifatBadge = match($d->sifat) {
@@ -121,12 +150,20 @@
                         <td>
                             @php
                                 $statusBadge = match($d->status) {
-                                    'selesai' => 'bg-success',
+                                    'selesai'  => 'bg-success',
                                     'diproses' => 'bg-primary',
-                                    default => 'bg-secondary',
+                                    'diterima' => 'bg-info text-dark',
+                                    default    => 'bg-secondary',
                                 };
                             @endphp
-                            <span class="badge rounded-pill {{ $statusBadge }}">{{ ucfirst($d->status) }}</span>
+                            <span class="badge rounded-pill {{ $statusBadge }}">{{ $d->status_label }}</span>
+                            @if($d->status === 'pending')
+                                <div class="text-muted" style="font-size:11px;">
+                                    {{ $d->dibaca_at ? 'Dibaca ' . $d->dibaca_at->diffForHumans() : 'Belum dibaca' }}
+                                </div>
+                            @elseif($d->status === 'selesai' && $d->selesai_at)
+                                <div class="text-muted" style="font-size:11px;">{{ $d->selesai_at->format('d M Y H:i') }}</div>
+                            @endif
                         </td>
                         <td>
                             <div class="aksi-wrap">
@@ -134,21 +171,16 @@
                                         data-surat-id="{{ $d->suratMasuk->id ?? '' }}"
                                         data-disposisi-id="{{ $d->id }}"
                                         data-status="{{ $d->status }}"
+                                        data-dibaca="{{ $d->dibaca_at ? 1 : 0 }}"
+                                        data-instruksi="{{ $d->instruksi }}"
+                                        data-catatan="{{ $d->catatan }}"
+                                        data-laporan="{{ $d->laporan_hasil }}"
+                                        data-file="{{ $d->file_hasil_url }}"
                                         title="Lihat Detail">
                                     <i class="fa fa-eye"></i> Lihat
                                 </button>
 
-                                @if($d->status === 'pending')
-                                    <button class="btn-aksi btn-aksi-proses btn-proses" data-id="{{ $d->id }}">
-                                        <i class="fa fa-play"></i> Mulai Proses
-                                    </button>
-                                @elseif($d->status === 'diproses')
-                                    <button class="btn-aksi btn-aksi-selesai btn-selesai" data-id="{{ $d->id }}">
-                                        <i class="fa fa-check"></i> Tandai Selesai
-                                    </button>
-                                @else
-                                    <span class="aksi-done"><i class="fa fa-circle-check"></i> Selesai</span>
-                                @endif
+                                @include('admin.disposisi.partials.tombol-status', ['d' => $d, 'block' => false])
                             </div>
                         </td>
                     </tr>
@@ -212,31 +244,7 @@
                             </td>
 
                             <td>
-                                <div class="d-flex gap-2 flex-wrap">
-
-                                    @if($surat->file_path)
-                                        <a
-                                            href="{{ route('surat-keluar.preview', $surat->id) }}"
-                                            target="_blank"
-                                            class="btn btn-sm btn-outline-primary">
-                                            <i class="fa fa-eye"></i>
-                                            Lihat PDF
-                                        </a>
-                                    @else
-                                        <span class="text-muted">
-                                            PDF belum tersedia
-                                        </span>
-                                    @endif
-
-                                    <button
-                                        type="button"
-                                        class="btn btn-sm btn-success btn-approve-surat-keluar"
-                                        data-url="{{ url('admin/surat-keluar/'.$surat->id.'/approve') }}">
-                                        <i class="fa fa-check"></i>
-                                        Setujui
-                                    </button>
-
-                                </div>
+                                @include('admin.disposisi.partials.tombol-surat-keluar', ['surat' => $surat])
                             </td>
                         </tr>
                     @empty
@@ -251,6 +259,9 @@
             </table>
         </div>
     </div>
+
+    {{-- Modal detail surat keluar (preview + Setujui) --}}
+    @include('admin.disposisi.partials.modal-surat-keluar')
 
 @endif
 
@@ -272,10 +283,59 @@
             <p class="text-muted mb-1" id="detailPengirim"></p>
             <p class="mb-3" id="detailPerihal"></p>
 
+            <p class="small fw-semibold mb-1">Instruksi Kepala Sekolah</p>
+            <div class="laporan-box mb-2" id="detailInstruksi"></div>
+            <div class="small text-muted mb-3" id="detailCatatan"></div>
+
+            <div id="detailLaporanWrap" class="mb-3" style="display:none;">
+                <p class="small fw-semibold mb-1">Laporan Hasil Anda</p>
+                <div class="laporan-box" id="detailLaporan"></div>
+                <a href="#" target="_blank" id="detailFile" class="small d-inline-block mt-2" style="display:none;">
+                    <i class="fa fa-paperclip"></i> Lihat lampiran hasil
+                </a>
+            </div>
+
             <div id="modalActionArea"></div>
           </div>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Laporan Hasil (saat Tandai Selesai) -->
+<div class="modal fade" id="modalLaporan" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border:none; border-radius:16px;">
+      <form id="formLaporan" enctype="multipart/form-data">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">Laporan Hasil Tindak Lanjut</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="laporanDisposisiId">
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Apa yang sudah dikerjakan? <span class="text-danger">*</span></label>
+            <textarea id="laporanHasil" class="form-control" rows="5" maxlength="5000"
+                      placeholder="Contoh: Sudah koordinasi dengan PT X, MoU ditandatangani tanggal 20 Oktober 2026."></textarea>
+            <small class="text-danger" id="errorLaporan"></small>
+          </div>
+
+          <div class="mb-1">
+            <label class="form-label small fw-semibold">Lampiran hasil (opsional)</label>
+            <input type="file" id="fileHasil" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+            <small class="text-muted">PDF, gambar, atau Word. Maksimal 5 MB.</small>
+            <small class="text-danger d-block" id="errorFile"></small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+          <button type="submit" class="btn-aksi btn-aksi-selesai" id="btnKirimLaporan">
+            <i class="fa fa-check"></i> Kirim & Tandai Selesai
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
@@ -285,68 +345,139 @@
 @push('scripts')
 <script>
 $(function () {
-    const modalDetail = new bootstrap.Modal(document.getElementById('modalDetailSurat'));
+    const modalDetail  = new bootstrap.Modal(document.getElementById('modalDetailSurat'));
+    const modalLaporan = new bootstrap.Modal(document.getElementById('modalLaporan'));
 
-    function updateStatus($btn, id, status) {
+    // Tombol aksi sesuai status (dipakai di dalam modal detail)
+    function tombolStatus(status, id) {
+        if (status === 'pending') {
+            return `<button class="btn-aksi btn-aksi-terima btn-aksi-block btn-status" data-id="${id}" data-next="diterima">
+                        <i class="fa fa-hand"></i> Terima Disposisi
+                    </button>`;
+        }
+        if (status === 'diterima') {
+            return `<button class="btn-aksi btn-aksi-proses btn-aksi-block btn-status" data-id="${id}" data-next="diproses">
+                        <i class="fa fa-play"></i> Mulai Proses
+                    </button>`;
+        }
+        if (status === 'diproses') {
+            return `<button class="btn-aksi btn-aksi-selesai btn-aksi-block btn-buka-laporan" data-id="${id}">
+                        <i class="fa fa-check"></i> Tandai Selesai
+                    </button>`;
+        }
+        return `<span class="aksi-done btn-aksi-block"><i class="fa fa-circle-check"></i> Sudah selesai</span>`;
+    }
+
+    function kirimStatus(id, formData, $btn) {
         const originalHtml = $btn.html();
         $btn.prop('disabled', true)
             .html('<span class="spinner-border spinner-border-sm"></span> Memproses...');
 
+        formData.append('_method', 'PUT');
+
         $.ajax({
             url: `/admin/disposisi-saya/${id}`,
-            method: 'PUT',
-            data: {
-                _token: '{{ csrf_token() }}',
-                status: status
-            },
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
             success: function (res) {
                 alert(res.message);
                 location.reload();
             },
-            error: function () {
-                alert('Gagal memperbarui status.');
+            error: function (xhr) {
+                const errors = xhr.responseJSON?.errors ?? {};
+                if (errors.laporan_hasil) $('#errorLaporan').text(errors.laporan_hasil[0]);
+                if (errors.file_hasil) $('#errorFile').text(errors.file_hasil[0]);
+
+                if (!errors.laporan_hasil && !errors.file_hasil) {
+                    alert(xhr.responseJSON?.message ?? 'Gagal memperbarui status.');
+                }
                 $btn.prop('disabled', false).html(originalHtml);
             }
         });
     }
 
-    $(document).on('click', '.btn-proses', function () {
-        updateStatus($(this), $(this).data('id'), 'diproses');
+    // Terima / Mulai Proses
+    $(document).on('click', '.btn-status', function () {
+        const fd = new FormData();
+        fd.append('status', $(this).data('next'));
+        kirimStatus($(this).data('id'), fd, $(this));
     });
 
-    $(document).on('click', '.btn-selesai', function () {
-        updateStatus($(this), $(this).data('id'), 'selesai');
+    // Buka form laporan sebelum Tandai Selesai
+    $(document).on('click', '.btn-buka-laporan', function () {
+        $('#formLaporan')[0].reset();
+        $('#errorLaporan, #errorFile').text('');
+        $('#laporanDisposisiId').val($(this).data('id'));
+        modalDetail.hide();
+        modalLaporan.show();
     });
 
+    $('#formLaporan').on('submit', function (e) {
+        e.preventDefault();
+        $('#errorLaporan, #errorFile').text('');
+
+        const laporan = $('#laporanHasil').val().trim();
+        if (laporan.length < 5) {
+            $('#errorLaporan').text('Laporan hasil wajib diisi (minimal 5 karakter).');
+            return;
+        }
+
+        const fd = new FormData();
+        fd.append('status', 'selesai');
+        fd.append('laporan_hasil', laporan);
+
+        const file = $('#fileHasil')[0].files[0];
+        if (file) fd.append('file_hasil', file);
+
+        kirimStatus($('#laporanDisposisiId').val(), fd, $('#btnKirimLaporan'));
+    });
+
+    // Lihat detail surat
     $(document).on('click', '.btn-lihat-detail', function () {
-        const suratId = $(this).data('surat-id');
-        const disposisiId = $(this).data('disposisi-id');
-        const status = $(this).data('status');
+        const $btn        = $(this);
+        const suratId     = $btn.data('surat-id');
+        const disposisiId = $btn.data('disposisi-id');
+        const status      = $btn.data('status');
 
         if (!suratId) {
             alert('Data surat tidak ditemukan.');
             return;
         }
 
+        // Tandai sudah dibaca saat pertama kali dibuka
+        if (!$btn.data('dibaca')) {
+            $.post(`/admin/disposisi-saya/${disposisiId}/baca`);
+            $btn.data('dibaca', 1);
+            $btn.closest('tr').removeClass('row-baru').find('.dot-baru').remove();
+        }
+
         $.get(`/admin/disposisi/${suratId}/detail`, function (res) {
-            $('#pdfViewer').attr('src', res.pdf_url);
+            $('#pdfViewer').attr('src', res.pdf_url || 'about:blank');
             $('#detailNomorSurat').text(res.nomor_surat);
             $('#detailPengirim').text('Dari: ' + res.pengirim);
             $('#detailPerihal').text(res.perihal);
 
-            let actionBtn = '';
-            if (status === 'pending') {
-                actionBtn = `<button class="btn-aksi btn-aksi-proses btn-aksi-block btn-proses" data-id="${disposisiId}">
-                                <i class="fa fa-play"></i> Mulai Proses
-                             </button>`;
-            } else if (status === 'diproses') {
-                actionBtn = `<button class="btn-aksi btn-aksi-selesai btn-aksi-block btn-selesai" data-id="${disposisiId}">
-                                <i class="fa fa-check"></i> Tandai Selesai
-                             </button>`;
+            $('#detailInstruksi').text($btn.data('instruksi') || '-');
+            const catatan = $btn.data('catatan');
+            $('#detailCatatan').text(catatan ? 'Catatan: ' + catatan : '');
+
+            const laporan = $btn.data('laporan');
+            const fileUrl = $btn.data('file');
+            if (status === 'selesai' && laporan) {
+                $('#detailLaporan').text(laporan);
+                $('#detailLaporanWrap').show();
+                if (fileUrl) {
+                    $('#detailFile').attr('href', fileUrl).show();
+                } else {
+                    $('#detailFile').hide();
+                }
             } else {
-                actionBtn = `<span class="aksi-done btn-aksi-block"><i class="fa fa-circle-check"></i> Sudah selesai</span>`;
+                $('#detailLaporanWrap').hide();
             }
-            $('#modalActionArea').html(actionBtn);
+
+            $('#modalActionArea').html(tombolStatus(status, disposisiId));
 
             modalDetail.show();
         }).fail(function (xhr) {
@@ -357,43 +488,4 @@ $(function () {
 </script>
 @endpush
 
-@push('scripts')
-<script>
-$(document).on('click', '.btn-approve-surat-keluar', function () {
-    const $button = $(this);
-    const url = $button.data('url');
-
-    if (!confirm('Yakin ingin menyetujui surat keluar ini?')) {
-        return;
-    }
-
-    $button
-        .prop('disabled', true)
-        .text('Memproses...');
-
-    $.ajax({
-        url: url,
-        method: 'POST',
-        data: {
-            _token: '{{ csrf_token() }}'
-        },
-
-        success: function (response) {
-            alert(response.message || 'Surat berhasil disetujui.');
-            window.location.reload();
-        },
-
-        error: function (xhr) {
-            alert(
-                xhr.responseJSON?.message ||
-                'Gagal menyetujui surat keluar.'
-            );
-
-            $button
-                .prop('disabled', false)
-                .html('<i class="fa fa-check"></i> Setujui');
-        }
-    });
-});
-</script>
-@endpush
+{{-- Setujui surat keluar: lihat partials/modal-surat-keluar.blade.php --}}

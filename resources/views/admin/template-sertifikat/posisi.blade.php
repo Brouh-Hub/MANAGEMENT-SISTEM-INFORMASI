@@ -15,9 +15,9 @@
 <div class="row g-3">
     <div class="col-lg-9">
         <div class="card-panel mb-3">
-            <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
                 <label class="form-label small fw-semibold mb-0">Ganti Gambar Latar</label>
-                <input type="file" id="fileGambarBaru" accept=".jpg,.jpeg,.png" class="form-control form-control-sm" style="max-width: 320px;">
+                <input type="file" id="fileGambarBaru" accept=".jpg,.jpeg,.png" class="form-control form-control-sm" style="max-width: 320px; flex: 1 1 180px;">
                 <button type="button" id="btnUploadGambar" class="btn btn-sm text-white" style="background: var(--brand);">
                     <i class="fa fa-upload me-1"></i> Upload
                 </button>
@@ -97,6 +97,7 @@ $(function () {
             box.style.borderRadius = '4px';
             box.style.cursor = 'move';
             box.style.whiteSpace = 'nowrap';
+            box.style.touchAction = 'none'; // di HP: geser kotak, bukan menggulir halaman
             box.style.textAlign = f.align;
             stage.appendChild(box);
         });

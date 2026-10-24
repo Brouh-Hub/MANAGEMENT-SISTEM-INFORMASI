@@ -19,6 +19,7 @@ class Mitra extends Model
         'bidang',
         'humas_id',
         'foto',
+        'sumber',
     ];
 
     protected $appends = [
@@ -42,6 +43,14 @@ class Mitra extends Model
      *      ↓
      * kerjasama.industri_id
      */
+    /**
+     * Dokumen MoU / PKS dengan mitra ini.
+     */
+    public function dokumenKerjasama()
+    {
+        return $this->hasMany(DokumenKerjasama::class, 'industri_id');
+    }
+
     public function kerjasama()
     {
         return $this->hasMany(

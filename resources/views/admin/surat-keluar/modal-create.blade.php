@@ -304,6 +304,43 @@
 
 }
 
+/* =========================================================
+   HP & TABLET KECIL: susun bertumpuk (form di atas, preview di bawah)
+   Grid diganti flex supaya kotak form tidak "terpencet" & isinya
+   tidak menimpa area preview.
+   ========================================================= */
+
+@media (max-width: 1000px) {
+
+    #modal-create .modal-body {
+        display: flex !important;
+        flex-direction: column;
+        gap: 12px;
+        padding: 10px !important;
+        overflow-y: auto !important;
+    }
+
+    #modal-create .editor-card,
+    #modal-create .preview-toolbar {
+        flex: 0 0 auto;
+        height: auto;
+        min-height: auto;
+        overflow: visible;
+    }
+
+    #modal-create .paper-wrapper {
+        flex: 0 0 auto;
+        height: 70vh;
+        min-height: 420px;
+        padding: 10px !important;
+    }
+
+    #modal-create .modal-header,
+    #modal-create .modal-footer {
+        padding: 12px 14px;
+    }
+}
+
 </style>
 
 @endpush
@@ -514,7 +551,7 @@
                                  NOMOR
                                  ========================================= --}}
 
-                            <div class="col-md-4">
+                            <div class="col-12">
 
                                 <label
                                     class="form-label fw-semibold"
@@ -523,14 +560,8 @@
                                 </label>
 
 
-                                <input
-                                    type="text"
-                                    name="nomor_surat"
-                                    id="create-nomor_surat"
-                                    class="form-control"
-                                    placeholder="Contoh: B/005/667/I-SMKN4/2025"
-                                    required
-                                >
+                                {{-- Nomor dibuat sistem: klik Generate + password TU --}}
+                                @include('admin.surat-keluar.partials.input-nomor', ['inputId' => 'create-nomor_surat'])
 
 
                                 <small
@@ -545,7 +576,7 @@
                                  TANGGAL
                                  ========================================= --}}
 
-                            <div class="col-md-4">
+                            <div class="col-md-6">
 
                                 <label
                                     class="form-label fw-semibold"
@@ -575,7 +606,7 @@
                                  SIFAT
                                  ========================================= --}}
 
-                            <div class="col-md-2">
+                            <div class="col-md-3">
 
                                 <label
                                     class="form-label fw-semibold"
@@ -599,7 +630,7 @@
                                  LAMPIRAN
                                  ========================================= --}}
 
-                            <div class="col-md-2">
+                            <div class="col-md-3">
 
                                 <label
                                     class="form-label fw-semibold"
@@ -1371,6 +1402,13 @@ $(document).ready(function () {
         }
 
 
+        /* Kop & data Kepala Sekolah dari menu Pengaturan Surat (sama seperti di PDF) */
+        Object.assign(values, @json(\App\Models\PengaturanSurat::ambil()->placeholder()));
+
+        if (!values.sifat)    values.sifat = 'Biasa';
+        if (!values.lampiran) values.lampiran = '-';
+
+
         return values;
 
     }
@@ -1728,6 +1766,12 @@ $(document).ready(function () {
 
                     const value =
                         values[key] ?? '';
+
+
+                    /* Kop surat sudah berupa HTML */
+                    if (key === 'kop_surat') {
+                        return value;
+                    }
 
 
                     /* -----------------------------------------

@@ -108,8 +108,8 @@
             });
         });
 
-        $(document).on('click', '.btn-hapus', function () {
-            if (!confirm('Hapus siswa ini?')) return;
+        $(document).on('click', '.btn-hapus', async function () {
+            if (!await konfirmasi('Hapus siswa ini?')) return;
             $.ajax({ url: '{{ url("siswa") }}/' + $(this).data('id'), method: 'DELETE', success: () => tabel.ajax.reload() });
         });
 

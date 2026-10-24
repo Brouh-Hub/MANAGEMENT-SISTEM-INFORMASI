@@ -150,14 +150,8 @@
                             Nomor
                         </label>
 
-                        <input
-                            type="text"
-                            name="nomor_surat"
-                            id="nomor_surat"
-                            class="form-control"
-                            placeholder="Contoh: 005/123/SMKN4/2026"
-                            required
-                        >
+                        {{-- Nomor dibuat sistem: klik Generate + password TU --}}
+                        @include('admin.surat-keluar.partials.input-nomor', ['inputId' => 'nomor_surat'])
 
                     </div>
 
@@ -698,13 +692,16 @@ $(document).ready(function () {
                 $('#nomor_surat').val() ?? '',
 
             tanggal_surat:
-                $('#tanggal_surat').val() ?? '',
+                formatTanggalIndonesia($('#tanggal_surat').val() ?? ''),
+
+            // Kop & data Kepala Sekolah dari menu Pengaturan Surat
+            ...@json(\App\Models\PengaturanSurat::ambil()->placeholder()),
 
             sifat:
-                $('#sifat').val() ?? '',
+                $('#sifat').val() || 'Biasa',
 
             lampiran:
-                $('#lampiran').val() ?? '',
+                $('#lampiran').val() || '-',
 
             perihal:
                 $('#perihal').val() ?? '',
@@ -749,14 +746,34 @@ $(document).ready(function () {
             }
 
 
-            values[match[1]] =
-                $(this).val() ?? '';
+            const nilai = $(this).val() ?? '';
+
+            // Jangan timpa nilai bawaan (mis. Sifat "Biasa") dengan isian kosong
+            if (nilai === '' && values[match[1]]) {
+                return;
+            }
+
+            values[match[1]] = nilai;
 
         });
 
 
         return values;
 
+    }
+
+
+    // 2026-10-12 -> 12 Oktober 2026 (sama seperti di PDF)
+    function formatTanggalIndonesia(value) {
+        if (!value) return '';
+
+        const bulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        const p = value.split('-');
+
+        if (p.length !== 3) return value;
+
+        return parseInt(p[2], 10) + ' ' + bulan[parseInt(p[1], 10) - 1] + ' ' + p[0];
     }
 
 
@@ -812,14 +829,19 @@ $(document).ready(function () {
     /*
      * Ganti semua placeholder:
      *
-     * {{nomor_surat}}
-     * {{ nomor_surat }}
-     * {{*nomor_surat*}}
-     * {{ *nomor_surat* }}
+     * @{{nomor_surat}}
+     * @{{ nomor_surat }}
+     * @{{*nomor_surat*}}
+     * @{{ *nomor_surat* }}
      */
     html = html.replace(
         /\{\{\s*\*?\s*([A-Za-z0-9_]+)\s*\*?\s*\}\}/g,
         function (match, key) {
+
+            // Kop surat sudah berupa HTML
+            if (key === 'kop_surat') {
+                return values.kop_surat ?? '';
+            }
 
             if (
                 Object.prototype.hasOwnProperty.call(values, key)

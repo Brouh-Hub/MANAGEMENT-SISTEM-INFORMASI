@@ -44,6 +44,7 @@ class UserController extends Controller
         return view('admin.user.index', [
             'title'    => 'Manajemen User',
             'subtitle' => 'Kelola akun admin dan super admin sistem.',
+            'daftarJabatan' => config('jabatan.daftar', []),
         ]);
     }
 
@@ -56,7 +57,11 @@ class UserController extends Controller
             'email'    => 'required|email|unique:users,email',
             'password' => 'required|string|min:6',
             'role'     => 'required|in:admin,super_admin',
-            'jabatan'  => 'nullable|string|max:255',
+            // Jabatan dipilih dari master jabatan (config/jabatan.php)
+            'jabatan'  => ['required', \Illuminate\Validation\Rule::in(config('jabatan.daftar', []))],
+        ], [
+            'jabatan.required' => 'Pilih jabatan.',
+            'jabatan.in'       => 'Jabatan tidak ada di daftar master jabatan.',
         ]);
 
         if ($validator->fails()) {
@@ -85,7 +90,14 @@ class UserController extends Controller
             'email'    => 'required|email|unique:users,email,' . $id,
             'password' => 'nullable|string|min:6',
             'role'     => 'required|in:admin,super_admin',
-            'jabatan'  => 'nullable|string|max:255',
+            // Jabatan dari master; jabatan lama user yang belum ada di daftar tetap boleh dipertahankan
+            'jabatan'  => ['required', \Illuminate\Validation\Rule::in(array_merge(
+                config('jabatan.daftar', []),
+                [(string) User::whereKey($id)->value('jabatan')]
+            ))],
+        ], [
+            'jabatan.required' => 'Pilih jabatan.',
+            'jabatan.in'       => 'Jabatan tidak ada di daftar master jabatan.',
         ]);
 
         if ($validator->fails()) {

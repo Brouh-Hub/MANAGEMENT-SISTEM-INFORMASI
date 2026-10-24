@@ -1,5 +1,5 @@
 @extends('layouts.main')
-
+@php $title = $title ?? 'Sertifikat'; @endphp
 @section('content')
 
 {{-- =========================================================
@@ -1048,20 +1048,50 @@ $(function () {
        CLEAR SEMUA DATA SISWA
     ========================================================= */
 
-    $('#btnClearSemuaSiswa').on('click', function () {
+    /* =========================================================
+       HAPUS SATU SISWA
+    ========================================================= */
 
-        if (!confirm(
+    $(document).on('click', '.btn-hapus-siswa', async function () {
+        const id = $(this).data('id');
+        const nama = $(this).data('nama');
+
+        if (!await konfirmasi(
+            'Hapus siswa "' + nama + '"?\n\n' +
+            'Data PKL siswa ini ikut terhapus. Kerja sama & mitra hasil import yang jadi kosong juga ikut dibersihkan ' +
+            '(mitra yang punya dokumen MoU/PKS tetap disimpan). Sertifikat yang sudah dibuat tetap tersimpan.'
+        )) {
+            return;
+        }
+
+        $.post(baseUrl + '/siswa/' + id + '/hapus', { _token: '{{ csrf_token() }}' })
+            .done(function (res) {
+                tableSiswa.ajax.reload(null, false);
+                notif(res.message, 'sukses');
+            })
+            .fail(function (xhr) {
+                notif(xhr.responseJSON?.message ?? 'Gagal menghapus siswa.', 'gagal');
+            });
+    });
+
+    $('#btnClearSemuaSiswa').on('click', async function () {
+
+        if (!await konfirmasi(
             'PERINGATAN!\n\n' +
-            'Semua data siswa akan dihapus dari database.\n\n' +
+            'Semua data siswa akan dihapus dari database, termasuk:\n' +
+            '- data PKL (tempat magang) siswa,\n' +
+            '- kerja sama industri yang pesertanya ikut terhapus,\n' +
+            '- mitra industri yang tidak punya kerja sama lain\n  (mitra yang punya dokumen MoU/PKS tetap disimpan).\n\n' +
+            'Sertifikat yang sudah dibuat tetap tersimpan.\n\n' +
             'Tindakan ini tidak bisa dibatalkan.\n\n' +
             'Lanjutkan?'
         )) {
             return;
         }
 
-        if (!confirm(
+        if (!await konfirmasi(
             'Yakin ingin menghapus SEMUA DATA SISWA?\n\n' +
-            'Klik OK untuk benar-benar menghapus.'
+            'Klik "Ya, hapus" untuk benar-benar menghapus.'
         )) {
             return;
         }

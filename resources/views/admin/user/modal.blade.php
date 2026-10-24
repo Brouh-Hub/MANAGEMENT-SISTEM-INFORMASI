@@ -26,7 +26,13 @@
                     </div>
                     <div class="mb-2">
                         <label class="form-label">Jabatan</label>
-                        <input type="text" name="jabatan" class="form-control" placeholder="Waka Kurikulum, TU, Humas, dll">
+                        <select name="jabatan" class="form-select">
+                            <option value="">-- Pilih jabatan --</option>
+                            @foreach($daftarJabatan ?? config('jabatan.daftar', []) as $j)
+                                <option value="{{ $j }}">{{ $j }}</option>
+                            @endforeach
+                        </select>
+                        <small class="text-danger error-msg" id="create-error-jabatan"></small>
                     </div>
                     <div class="mb-2">
                         <label class="form-label">Role</label>
@@ -73,7 +79,13 @@
                     </div>
                     <div class="mb-2">
                         <label class="form-label">Jabatan</label>
-                        <input type="text" id="update-jabatan" name="jabatan" class="form-control">
+                        <select id="update-jabatan" name="jabatan" class="form-select">
+                            <option value="">-- Pilih jabatan --</option>
+                            @foreach($daftarJabatan ?? config('jabatan.daftar', []) as $j)
+                                <option value="{{ $j }}">{{ $j }}</option>
+                            @endforeach
+                        </select>
+                        <small class="text-danger error-msg" id="update-error-jabatan"></small>
                     </div>
                     <div class="mb-2">
                         <label class="form-label">Role</label>

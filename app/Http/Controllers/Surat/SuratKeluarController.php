@@ -13,25 +13,55 @@ use Illuminate\Support\Facades\Validator;
 use Yajra\DataTables\Facades\DataTables;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\RenderSurat;
+use App\Models\NomorSuratReservasi;
+use App\Models\PenomoranSurat;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 
 class SuratKeluarController extends Controller
 {
+    /*
+     * Field bawaan form surat keluar yang selalu disimpan,
+     * walaupun tidak didaftarkan sebagai field template.
+     */
+    private const FIELD_STANDAR = [
+        'sifat',
+        'lampiran',
+        'isi_surat',
+        'hari_tanggal_acara',
+        'pukul',
+        'tempat',
+        'isi_penutup',
+    ];
+
     public function index(Request $request)
     {
         if ($request->ajax()) {
-            $data = SuratKeluar::latest()->get();
+            $data = SuratKeluar::with('pengonfirmasi:id,name')->latest('id')->get();
 
             return DataTables::of($data)
                 ->addIndexColumn()
                 ->addColumn('status_badge', function ($row) {
-                    $map = [
-                        'draft'            => ['Draft', 'secondary'],
-                        'menunggu_approve' => ['Menunggu Persetujuan', 'warning'],
-                        'terbit'           => ['Disetujui', 'success'],
+                    $warna = [
+                        'draft'              => 'secondary',
+                        'menunggu_kepala_tu' => 'info',
+                        'dikembalikan'       => 'danger',
+                        'menunggu_approve'   => 'warning',
+                        'terbit'             => 'success',
                     ];
-                    [$label, $color] = $map[$row->status] ?? ['-', 'secondary'];
+                    $label = SuratKeluar::STATUS[$row->status] ?? '-';
+                    $color = $warna[$row->status] ?? 'secondary';
 
-                    return '<span class="text-' . $color . '"><i class="fa fa-circle" style="font-size:8px;"></i> ' . $label . '</span>';
+                    $html = '<span class="text-' . $color . '"><i class="fa fa-circle" style="font-size:8px;"></i> ' . $label . '</span>';
+
+                    // Alasan dari Kepala Tata Usaha
+                    if ($row->status === 'dikembalikan' && $row->alasan_konfirmasi) {
+                        $html .= '<div class="small text-danger mt-1" style="max-width:220px; white-space:normal;">' . e($row->alasan_konfirmasi) . '</div>';
+                    }
+
+                    return $html;
                 })
                 ->addColumn('actions', function ($row) {
 
@@ -57,15 +87,15 @@ class SuratKeluarController extends Controller
                         <i class="fa fa-pen"></i>
                     </a>';
 
-                    // TOMBOL AJUKAN: KHUSUS TU DAN STATUS DRAFT
+                    // TOMBOL AJUKAN KE KEPALA TU: KHUSUS TU, STATUS DRAFT / DIKEMBALIKAN
                     if (
                         auth()->user()?->jabatan === 'Tata Usaha' &&
-                        $row->status === 'draft'
+                        in_array($row->status, ['draft', 'dikembalikan'], true)
                     ) {
                         $btn .= '<a href="javascript:void(0)"
                             class="btn-ajukan btn btn-sm btn-light text-primary"
                             data-id="' . $row->id . '"
-                            title="Ajukan Persetujuan">
+                            title="' . ($row->status === 'dikembalikan' ? 'Ajukan Ulang ke Kepala TU' : 'Ajukan ke Kepala TU') . '">
                             <i class="fa fa-paper-plane"></i>
                         </a>';
                     }
@@ -158,32 +188,43 @@ class SuratKeluarController extends Controller
      */
     private function cleanTemplateData(Request $request): array
     {
+        $allowed = self::FIELD_STANDAR;
+
         $templateId = $request->input('template_surat_id');
 
-        if (!$templateId) {
-            return [];
-        }
+        if ($templateId) {
+            $template = TemplateSurat::with([
+                'fields' => function ($query) {
+                    $query->where('is_active', true);
+                }
+            ])->find($templateId);
 
-        $template = TemplateSurat::with([
-            'fields' => function ($query) {
-                $query->where('is_active', true);
+            if ($template) {
+                $allowed = array_merge($allowed, $template->fields->pluck('key')->all());
             }
-        ])->find($templateId);
-
-        if (!$template) {
-            return [];
         }
-
-        $allowed = $template->fields
-            ->pluck('key')
-            ->all();
 
         $input = $request->input('template_data', []);
 
-        return array_intersect_key(
+        $data = array_intersect_key(
             is_array($input) ? $input : [],
             array_flip($allowed)
         );
+
+        /*
+         * Form di modal "Tambah Surat" mengirim field bawaan langsung
+         * (sifat, lampiran, isi_surat_input, ...), bukan template_data[...].
+         * Ambil juga dari sana supaya tetap tersimpan.
+         */
+        foreach (self::FIELD_STANDAR as $key) {
+            $sumber = $key === 'isi_surat' ? 'isi_surat_input' : $key;
+
+            if (! isset($data[$key]) && $request->filled($sumber) && is_string($request->input($sumber))) {
+                $data[$key] = $request->input($sumber);
+            }
+        }
+
+        return $data;
     }
 
     public function store(Request $request)
@@ -191,9 +232,10 @@ class SuratKeluarController extends Controller
         $validator = Validator::make($request->all(), [
             'template_surat_id' => 'nullable|exists:template_surat,id',
             'isi_surat'         => 'nullable|string',
-            'nomor_surat'       => 'required|string|max:255',
+            // Nomor wajib hasil "Generate Nomor" (lihat generateNomor)
+            'nomor_surat'       => 'required|string|max:255|unique:surat_keluar,nomor_surat',
             'perihal'           => 'required|string|max:255',
-            'tujuan'            => 'required|string|max:255',
+            'tujuan'            => 'nullable|string|max:255',
             'alamat_tujuan'     => 'nullable|string',
             'keterangan'        => 'nullable|string',
             'tanggal_surat'     => 'required|date',
@@ -202,7 +244,25 @@ class SuratKeluarController extends Controller
             'custom.*'          => 'nullable|string|max:1000',
             'template_data'     => 'nullable|array',
             'template_data.*'   => 'nullable|string|max:5000',
+        ], [
+            'nomor_surat.required' => 'Klik "Generate Nomor" terlebih dahulu.',
+            'nomor_surat.unique'   => 'Nomor surat ini sudah dipakai surat lain. Generate ulang nomornya.',
         ]);
+
+        // Nomor harus benar-benar hasil generate oleh TU yang sedang login
+        $validator->after(function ($v) use ($request) {
+            if (! $request->filled('nomor_surat')) {
+                return;
+            }
+
+            $reservasi = NomorSuratReservasi::where('nomor_surat', $request->input('nomor_surat'))->first();
+
+            if (! $reservasi || $reservasi->surat_keluar_id || $reservasi->user_id !== auth()->id()) {
+                $v->errors()->add('nomor_surat', 'Nomor surat tidak valid. Gunakan tombol "Generate Nomor".');
+            } elseif ((int) $reservasi->template_surat_id !== (int) $request->input('template_surat_id')) {
+                $v->errors()->add('nomor_surat', 'Nomor ini dibuat untuk jenis surat lain. Generate ulang nomornya.');
+            }
+        });
 
         if ($validator->fails()) {
             return response()->json(['status' => 'error', 'message' => 'Ooopps', 'errors' => $validator->errors()], 422);
@@ -211,6 +271,7 @@ class SuratKeluarController extends Controller
         try {
             $data = $validator->validated();
             $data['user_id_pembuat'] = auth()->id();
+            $data['tujuan'] = filled($data['tujuan'] ?? null) ? $data['tujuan'] : '-';
             $data['status'] = 'draft';
 
             $dataTambahan = $this->cleanCustom($request);
@@ -232,7 +293,15 @@ class SuratKeluarController extends Controller
                 $data['template_data']
             );
 
-            $surat = SuratKeluar::create($data);
+            $surat = DB::transaction(function () use ($data) {
+                $surat = SuratKeluar::create($data);
+
+                // Tandai nomor sudah dipakai surat ini
+                NomorSuratReservasi::where('nomor_surat', $surat->nomor_surat)
+                    ->update(['surat_keluar_id' => $surat->id]);
+
+                return $surat;
+            });
 
             return response()->json([
                 'status' => 'success',
@@ -252,15 +321,16 @@ class SuratKeluarController extends Controller
     public function update(Request $request, string $id)
     {
         $validator = Validator::make($request->all(), [
-            'nomor_surat'    => 'required|string|max:255',
             'perihal'        => 'required|string|max:255',
-            'tujuan'         => 'required|string|max:255',
+            'tujuan'         => 'nullable|string|max:255',
             'alamat_tujuan'  => 'nullable|string',
             'keterangan'     => 'nullable|string',
             'tanggal_surat'  => 'required|date',
             'file_surat'     => 'nullable|file|mimes:pdf|max:5120',
             'custom'         => 'nullable|array',
             'custom.*'       => 'nullable|string|max:1000',
+            'template_data'   => 'nullable|array',
+            'template_data.*' => 'nullable|string|max:5000',
         ]);
 
         if ($validator->fails()) {
@@ -270,14 +340,23 @@ class SuratKeluarController extends Controller
         try {
             $surat = SuratKeluar::findOrFail($id);
             $data = $validator->validated();
+            $data['tujuan'] = filled($data['tujuan'] ?? null) ? $data['tujuan'] : '-';
 
             // merge supaya nilai field yang sedang nonaktif tidak hilang
             $data['data_tambahan'] = array_merge($surat->data_tambahan ?? [], $this->cleanCustom($request));
 
+            if ($request->has('template_data')) {
+                $request->merge(['template_surat_id' => $surat->template_surat_id]);
+                $data['data_tambahan']['_template'] = array_merge(
+                    $surat->data_tambahan['_template'] ?? [],
+                    $this->cleanTemplateData($request)
+                );
+            }
+
             if ($request->hasFile('file_surat')) {
                 $data['file_path'] = $request->file('file_surat')->store('surat-keluar', 'public');
             }
-            unset($data['file_surat'], $data['custom']);
+            unset($data['file_surat'], $data['custom'], $data['template_data']);
 
             $surat->update($data);
 
@@ -293,6 +372,11 @@ class SuratKeluarController extends Controller
     {
         try {
             $surat = SuratKeluar::findOrFail($id);
+
+            if ($surat->status !== 'menunggu_approve') {
+                return response()->json(['status' => 'error', 'message' => 'Surat ini tidak sedang menunggu persetujuan.', 'data' => null], 422);
+            }
+
             $surat->update([
                 'status'            => 'terbit',
                 'kepala_sekolah_id' => auth()->id(),
@@ -325,47 +409,29 @@ class SuratKeluarController extends Controller
 {
     try {
 
-        $surat = SuratKeluar::findOrFail($id);
+        $surat = SuratKeluar::with('templateSurat')->findOrFail($id);
 
         /*
-         * Surat Undangan menggunakan HTML yang sudah dibuat
-         * dari form dan disimpan ke kolom isi_surat.
+         * Isi surat dibuat di server dari template + data yang tersimpan,
+         * supaya nomor, tanggal, dan tanda tangan selalu terisi.
+         * Kalau surat tidak memakai template, pakai isi_surat yang tersimpan.
          */
-        if (empty($surat->isi_surat)) {
+        $html = $surat->templateSurat
+            ? app(RenderSurat::class)->dariSurat($surat)
+            : (string) $surat->isi_surat;
+
+        if (trim(strip_tags($html, '<img>')) === '') {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Isi surat belum tersedia. Silakan isi dan simpan surat terlebih dahulu.',
+                'message' => 'Isi surat belum tersedia. Silakan pilih template dan simpan surat terlebih dahulu.',
             ], 422);
         }
 
-        $html = $surat->isi_surat;
+        // Simpan versi tanpa base64 ke database (lebih ringan)
+        $isiTersimpan = $html;
 
-        /*
-         * Ubah gambar lokal /images/... menjadi base64
-         * agar logo tetap tampil di DomPDF.
-         */
-        $html = preg_replace_callback(
-            '/src=["\']\/images\/([^"\']+)["\']/i',
-            function ($match) {
-
-                $imagePath = public_path(
-                    'images/' . $match[1]
-                );
-
-                if (!file_exists($imagePath)) {
-                    return $match[0];
-                }
-
-                $mime = mime_content_type($imagePath);
-
-                $base64 = base64_encode(
-                    file_get_contents($imagePath)
-                );
-
-                return 'src="data:' . $mime . ';base64,' . $base64 . '"';
-            },
-            $html
-        );
+        // Logo & gambar lokal dijadikan base64 supaya tampil di DomPDF
+        $html = app(RenderSurat::class)->sematkanGambar($html);
 
         $pdf = Pdf::loadView(
             'admin.surat-keluar.pdf',
@@ -390,7 +456,7 @@ class SuratKeluarController extends Controller
         );
 
         $surat->update([
-            'isi_surat' => $html,
+            'isi_surat' => $isiTersimpan,
             'file_path' => $path,
         ]);
 
@@ -462,47 +528,138 @@ class SuratKeluarController extends Controller
         return Storage::disk('public')->response($surat->file_path);
     }
 
-    public function ajukan(string $id)
-{
-    try {
-        $surat = SuratKeluar::findOrFail($id);
+    /*
+     * POST /surat-keluar/generate-nomor
+     * TU memasukkan password login-nya sendiri, lalu sistem membuat nomor surat
+     * berikutnya sesuai format di Pengaturan Surat > Penomoran.
+     * Nomor langsung dicatat (unik), jadi dua TU tidak mungkin dapat nomor yang sama.
+     */
+    public function generateNomor(Request $request)
+    {
+        $user = auth()->user();
 
-        if ($surat->status !== 'draft') {
+        $validator = Validator::make($request->all(), [
+            'template_surat_id' => 'nullable|exists:template_surat,id',
+            'password'          => 'required|string',
+        ], [
+            'password.required' => 'Masukkan password akun Anda.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 'error', 'message' => $validator->errors()->first(), 'errors' => $validator->errors()], 422);
+        }
+
+        // Maksimal 5 kali salah, lalu dikunci 5 menit
+        $kunci = 'generate-nomor:' . $user->id;
+
+        if (RateLimiter::tooManyAttempts($kunci, 5)) {
+            $menit = (int) ceil(RateLimiter::availableIn($kunci) / 60);
+
             return response()->json([
-                'status' => 'error',
-                'message' => 'Hanya surat berstatus Draft yang dapat diajukan.',
+                'status'  => 'error',
+                'message' => "Terlalu banyak percobaan. Coba lagi dalam {$menit} menit.",
+                'errors'  => ['password' => ["Terlalu banyak percobaan. Coba lagi dalam {$menit} menit."]],
+            ], 429);
+        }
+
+        if (! Hash::check($request->input('password'), $user->password)) {
+            RateLimiter::hit($kunci, 300);
+            $sisa = RateLimiter::remaining($kunci, 5);
+
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Password salah.',
+                'errors'  => ['password' => ["Password salah. Sisa percobaan: {$sisa}."]],
             ], 422);
         }
 
-        if (
-            !$surat->file_path ||
-            !Storage::disk('public')->exists($surat->file_path)
-        ) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Buat PDF surat terlebih dahulu sebelum mengajukan persetujuan.',
-            ], 422);
+        RateLimiter::clear($kunci);
+
+        $templateId = $request->filled('template_surat_id') ? (int) $request->input('template_surat_id') : null;
+
+        // Nomor yang pernah di-generate TU ini tapi suratnya belum jadi disimpan -> pakai lagi
+        $reservasi = NomorSuratReservasi::where('user_id', $user->id)
+            ->whereNull('surat_keluar_id')
+            ->where('template_surat_id', $templateId)
+            ->whereYear('created_at', now()->year)
+            ->oldest('id')
+            ->first();
+
+        $dipakaiUlang = (bool) $reservasi;
+
+        if (! $reservasi) {
+            $reservasi = DB::transaction(function () use ($templateId, $user) {
+                [$nomor, $urut, $aturanId] = PenomoranSurat::ambilNomorBaru($templateId);
+
+                return NomorSuratReservasi::create([
+                    'nomor_surat'        => $nomor,
+                    'nomor_urut'         => $urut,
+                    'penomoran_surat_id' => $aturanId,
+                    'template_surat_id'  => $templateId,
+                    'user_id'            => $user->id,
+                ]);
+            });
         }
 
-        $surat->update([
-            'status' => 'menunggu_approve',
+        return response()->json([
+            'status'  => 'success',
+            'message' => $dipakaiUlang
+                ? 'Nomor yang sebelumnya belum terpakai digunakan lagi.'
+                : 'Nomor surat berhasil dibuat.',
+            'data'    => ['nomor_surat' => $reservasi->nomor_surat],
         ]);
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Surat berhasil diajukan kepada Kepala Sekolah.',
-        ]);
-
-    } catch (ModelNotFoundException $e) {
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Surat keluar tidak ditemukan.',
-        ], 404);
-    } catch (\Exception $e) {
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Gagal mengajukan surat: ' . $e->getMessage(),
-        ], 500);
     }
-}
+
+    /*
+     * TU mengajukan surat ke Kepala Tata Usaha (dari Draft atau setelah Dikembalikan).
+     * Setelah Kepala TU setuju, surat lanjut ke Kepala Sekolah.
+     */
+    public function ajukan(string $id)
+    {
+        try {
+            $surat = SuratKeluar::findOrFail($id);
+
+            if (! in_array($surat->status, ['draft', 'dikembalikan'], true)) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Hanya surat berstatus Draft atau Dikembalikan yang dapat diajukan.',
+                ], 422);
+            }
+
+            // Surat dari template: PDF dibuat ulang supaya Kepala TU melihat versi terbaru
+            if ($surat->template_surat_id) {
+                $hasil = $this->generatePdf($id);
+
+                if ($hasil->getStatusCode() !== 200) {
+                    return $hasil;
+                }
+
+                $surat->refresh();
+            }
+
+            if (! $surat->file_path || ! Storage::disk('public')->exists($surat->file_path)) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Buat PDF surat terlebih dahulu sebelum mengajukan persetujuan.',
+                ], 422);
+            }
+
+            $diajukanUlang = $surat->status === 'dikembalikan';
+
+            $surat->update([
+                'status' => 'menunggu_kepala_tu',
+            ]);
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => $diajukanUlang
+                    ? 'Surat diajukan ulang kepada Kepala Tata Usaha.'
+                    : 'Surat berhasil diajukan kepada Kepala Tata Usaha.',
+            ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['status' => 'error', 'message' => 'Surat keluar tidak ditemukan.'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => 'Gagal mengajukan surat: ' . $e->getMessage()], 500);
+        }
+    }
 }

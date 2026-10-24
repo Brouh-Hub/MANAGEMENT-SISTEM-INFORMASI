@@ -123,10 +123,23 @@ $(document).ready(function () {
         table.search(this.value).draw();
     });
 
+    // ================= NO. AGENDA OTOMATIS =================
+    // Tampilkan perkiraan nomor berikutnya (nomor final dibuat server saat disimpan)
+    function tampilkanAgendaBerikutnya() {
+        const tanggal = $('#form-create [name=tanggal_terima]').val();
+
+        $.get(`{{ route('surat-masuk.agenda-berikutnya') }}`, { tanggal_terima: tanggal })
+            .done(res => $('#create-no_agenda').val(res.no_agenda));
+    }
+
+    $('#form-create [name=tanggal_terima]').on('change', tampilkanAgendaBerikutnya);
+
     // Tombol Tambah -> reset form
     $('[data-bs-target="#modal-create"]').on('click', function () {
         formMode = 'create';
         $('#form-create').trigger('reset');
+        $('#create-no_agenda').val('');
+        tampilkanAgendaBerikutnya();
     });
 
     // Submit form Create
@@ -169,6 +182,42 @@ $(document).ready(function () {
         $('#modal-update').modal('show');
     });
 
+    // Preview file surat di modal detail (PDF & gambar tampil langsung, Word cukup tombol unduh)
+    function tampilkanPreview(filePath) {
+        const $box = $('#detail-preview').empty();
+        const $aksi = $('#detail-file-actions');
+
+        if (!filePath) {
+            $aksi.attr('style', 'display:none !important;');
+            $box.html('<div class="text-center text-muted"><i class="fa fa-file-circle-xmark fa-2x mb-2"></i><div>Tidak ada file surat</div></div>');
+            return;
+        }
+
+        const url = `{{ asset('storage') }}/${filePath}`;
+        const ext = filePath.split('.').pop().toLowerCase();
+
+        $('#detail-file-open').attr('href', url);
+        $('#detail-file-download').attr('href', url);
+        $aksi.attr('style', '');
+
+        if (ext === 'pdf') {
+            $box.html($('<iframe>', { src: url, style: 'width:100%;height:100%;border:0;' }));
+        } else if (['jpg', 'jpeg', 'png'].includes(ext)) {
+            $box.html($('<img>', { src: url, alt: 'File surat', style: 'max-width:100%;max-height:100%;object-fit:contain;' }));
+        } else {
+            $box.html(`<div class="text-center text-muted px-3">
+                <i class="fa fa-file-word fa-3x mb-2" style="color:#2B579A;"></i>
+                <div>File ${ext.toUpperCase()} tidak bisa ditampilkan langsung.</div>
+                <div class="small">Gunakan tombol <b>Unduh</b> di bawah.</div>
+            </div>`);
+        }
+    }
+
+    // Kosongkan preview saat modal ditutup (supaya PDF berhenti dimuat)
+    $('#modal-detail').on('hidden.bs.modal', function () {
+        $('#detail-preview').empty();
+    });
+
     // Tombol Lihat -> isi field readonly di modal detail
     $('#table tbody').on('click', '.btn-detail', function () {
         let detail = $(this).data('detail');
@@ -179,14 +228,16 @@ $(document).ready(function () {
             }
         }
 
+        tampilkanPreview(detail.file_path);
+
         $('#modal-detail').modal('show');
     });
 
     // Tombol Hapus
-    $('#table tbody').on('click', '.btn-delete', function () {
+    $('#table tbody').on('click', '.btn-delete', async function () {
         let id = $(this).data('id');
 
-        if (!confirm('Yakin mau hapus surat ini?')) {
+        if (!await konfirmasi('Yakin mau hapus surat ini?')) {
             return;
         }
 

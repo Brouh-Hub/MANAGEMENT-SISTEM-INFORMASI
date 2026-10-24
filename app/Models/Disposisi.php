@@ -18,7 +18,41 @@ class Disposisi extends Model
         'sifat',
         'tujuan_user_id',
         'diteruskan_dari_id',
+        'dibaca_at',
+        'laporan_hasil',
+        'file_hasil',
+        'selesai_at',
+        'alasan',
+        'diputuskan_at',
     ];
+
+    protected $casts = [
+        'dibaca_at'  => 'datetime',
+        'selesai_at' => 'datetime',
+        'diputuskan_at' => 'datetime',
+    ];
+
+    // Label status untuk ditampilkan ke pengguna
+    public const LABEL_STATUS = [
+        'pending'    => 'Belum Diterima',
+        'diterima'   => 'Diterima',
+        'diproses'   => 'Diproses',
+        'selesai'    => 'Selesai',
+        'diteruskan' => 'Diteruskan',
+        'diarsipkan' => 'Diarsipkan',
+        'ditolak'    => 'Ditolak',
+    ];
+
+
+    public function getStatusLabelAttribute(): string
+    {
+        return self::LABEL_STATUS[$this->status] ?? ucfirst((string) $this->status);
+    }
+
+    public function getFileHasilUrlAttribute(): ?string
+    {
+        return $this->file_hasil ? asset('storage/' . $this->file_hasil) : null;
+    }
 
     public function suratMasuk()
     {

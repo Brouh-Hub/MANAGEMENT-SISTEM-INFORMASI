@@ -14,6 +14,7 @@ use Exception;
 
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -482,6 +483,15 @@ public function daftarSiswa(Request $request)
                         </button>
 
                     </form>
+
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-outline-danger btn-hapus-siswa"
+                        data-id="' . $siswa->id . '"
+                        data-nama="' . e($siswa->nama) . '"
+                        title="Hapus siswa">
+                        <i class="fa fa-trash"></i>
+                    </button>
 
                 </div>
             ';
@@ -1766,33 +1776,132 @@ public function importSiswa(Request $request)
     |--------------------------------------------------------------------------
     */
 
+    /*
+     * Hapus SATU siswa beserta data PKL-nya.
+     * Kerja sama yang jadi tidak punya peserta ikut dihapus, lalu mitra yang
+     * jadi tidak punya kerja sama (dan tidak punya dokumen MoU/PKS) ikut dihapus.
+     * Sertifikat yang sudah diterbitkan tetap disimpan sebagai arsip.
+     */
+    public function hapusSiswa(string $id)
+    {
+        try {
+            $siswa = Siswa::findOrFail($id);
+
+            $hasil = DB::transaction(function () use ($siswa) {
+                $kerjasamaIds = Pkl::where('siswa_id', $siswa->id)->pluck('kerjasama_id')->filter()->unique()->all();
+                $mitraIds = Kerjasama::whereIn('id', $kerjasamaIds)->pluck('industri_id')->filter()->unique()->all();
+
+                Pkl::where('siswa_id', $siswa->id)->delete();
+                $siswa->delete();
+
+                $kerjasamaKosong = Kerjasama::whereIn('id', $kerjasamaIds)->whereDoesntHave('pkl')->get();
+                foreach ($kerjasamaKosong as $kerjasama) {
+                    if ($kerjasama->file_mou_path) {
+                        Storage::disk('public')->delete($kerjasama->file_mou_path);
+                    }
+                    $kerjasama->delete();
+                }
+
+                $mitraKosong = Mitra::whereIn('id', $mitraIds)
+                    ->whereDoesntHave('kerjasama')
+                    ->whereDoesntHave('dokumenKerjasama')
+                    ->get();
+                foreach ($mitraKosong as $mitra) {
+                    if ($mitra->foto) {
+                        Storage::disk('public')->delete($mitra->foto);
+                    }
+                    $mitra->delete();
+                }
+
+                return ['kerjasama' => $kerjasamaKosong->count(), 'mitra' => $mitraKosong->count()];
+            });
+
+            $tambahan = [];
+            if ($hasil['kerjasama']) $tambahan[] = $hasil['kerjasama'] . ' kerja sama kosong';
+            if ($hasil['mitra']) $tambahan[] = $hasil['mitra'] . ' mitra kosong';
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Siswa ' . $siswa->nama . ' berhasil dihapus'
+                    . ($tambahan ? ' (ikut dibersihkan: ' . implode(', ', $tambahan) . ').' : '.'),
+            ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['status' => 'error', 'message' => 'Siswa tidak ditemukan.'], 404);
+        } catch (Exception $e) {
+            return response()->json(['status' => 'error', 'message' => 'Gagal menghapus siswa: ' . $e->getMessage()], 500);
+        }
+    }
+
     public function clearSemuaSiswa()
     {
         try {
+            $hasil = DB::transaction(function () {
 
-            $jumlah = Siswa::count();
+                /*
+                 * Catat dulu kerja sama & mitra yang punya peserta PKL.
+                 * Setelah siswa dihapus, hanya yang jadi KOSONG karena
+                 * penghapusan ini yang ikut dihapus. Mitra/kerja sama yang
+                 * dibuat manual dan memang belum punya siswa tidak disentuh.
+                 */
+                $kerjasamaIds = Pkl::query()->distinct()->pluck('kerjasama_id')->filter()->all();
+                $mitraIds = Kerjasama::whereIn('id', $kerjasamaIds)
+                    ->pluck('industri_id')
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
 
-            Siswa::query()->delete();
+                $jumlahSiswa = Siswa::count();
+
+                // Data PKL dihapus eksplisit (tidak bergantung pada foreign key)
+                Pkl::query()->delete();
+                Siswa::query()->delete();
+
+                // Kerja sama yang sekarang tidak punya peserta
+                $kerjasamaKosong = Kerjasama::whereIn('id', $kerjasamaIds)
+                    ->whereDoesntHave('pkl')
+                    ->get();
+
+                foreach ($kerjasamaKosong as $kerjasama) {
+                    if ($kerjasama->file_mou_path) {
+                        Storage::disk('public')->delete($kerjasama->file_mou_path);
+                    }
+                    $kerjasama->delete();
+                }
+
+                // Mitra industri yang sekarang tidak punya kerja sama
+                $mitraKosong = Mitra::whereIn('id', $mitraIds)
+                    ->whereDoesntHave('kerjasama')
+                    ->whereDoesntHave('dokumenKerjasama') // mitra yang punya MoU/PKS tetap disimpan
+                    ->get();
+
+                foreach ($mitraKosong as $mitra) {
+                    if ($mitra->foto) {
+                        Storage::disk('public')->delete($mitra->foto);
+                    }
+                    $mitra->delete();
+                }
+
+                return [
+                    'siswa'     => $jumlahSiswa,
+                    'kerjasama' => $kerjasamaKosong->count(),
+                    'mitra'     => $mitraKosong->count(),
+                ];
+            });
 
             return response()->json([
-
                 'success' => true,
-
                 'message' =>
-                    "Berhasil menghapus {$jumlah} data siswa.",
-
+                    "Berhasil menghapus {$hasil['siswa']} data siswa beserta data PKL-nya, "
+                    . "{$hasil['kerjasama']} kerja sama, dan {$hasil['mitra']} mitra industri yang terkait.",
+                'data' => $hasil,
             ]);
-
         } catch (Exception $e) {
-
             return response()->json([
-
                 'success' => false,
-
                 'message' =>
                     'Gagal menghapus semua data siswa: ' .
                     $e->getMessage(),
-
             ], 500);
         }
     }

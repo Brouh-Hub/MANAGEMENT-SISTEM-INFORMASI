@@ -88,7 +88,9 @@
                 <div class="section-kicker mb-2">Kerja Sama Industri</div>
                 <h4 class="fw-bold mb-0">Mitra yang membuka jalan ke dunia kerja</h4>
             </div>
-            <a href="{{ route('mitra.public') }}" class="text-decoration-none">Lihat semua &rarr;</a>
+            @if(Route::has('mitra.public'))
+                <a href="{{ route('mitra.public') }}" class="text-decoration-none">Lihat semua &rarr;</a>
+            @endif
         </div>
 
         <div class="row g-3">

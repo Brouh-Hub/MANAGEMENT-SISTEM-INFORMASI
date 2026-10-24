@@ -162,9 +162,9 @@ $(function () {
         $('#modalTemplate').modal('show');
     });
 
-    $('#table-template').on('click', '.btn-delete', function () {
+    $('#table-template').on('click', '.btn-delete', async function () {
         const id = $(this).data('id');
-        if (!confirm('Hapus template ini? Sertifikat yang sudah pakai template ini tidak akan ikut terhapus.')) return;
+        if (!await konfirmasi('Hapus template ini? Sertifikat yang sudah pakai template ini tidak akan ikut terhapus.')) return;
 
         $.ajax({
             url: `/admin/template-sertifikat/${id}`,

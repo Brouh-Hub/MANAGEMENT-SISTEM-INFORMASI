@@ -160,38 +160,6 @@
                         </div>
 
 
-                        {{-- FOTO --}}
-                        <div class="col-md-12">
-
-                            <label class="form-label">
-                                Logo / Foto Perusahaan
-                            </label>
-
-                            <input type="file"
-                                   name="foto"
-                                   id="create-foto"
-                                   class="form-control"
-                                   accept=".jpg,.jpeg,.png,.webp">
-
-                            <small class="text-muted">
-                                Format JPG, JPEG, PNG, WEBP. Maksimal 2 MB.
-                            </small>
-
-                            <small class="text-danger error-msg d-block"
-                                   id="create-error-foto">
-                            </small>
-
-
-                            <div class="mt-3">
-
-                                <img id="create-foto-preview"
-                                     src=""
-                                     class="img-thumbnail d-none"
-                                     style="width:120px;height:120px;object-fit:cover;">
-
-                            </div>
-
-                        </div>
 
                     </div>
 

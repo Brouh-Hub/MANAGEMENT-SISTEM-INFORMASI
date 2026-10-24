@@ -24,7 +24,6 @@
                 <thead>
                     <tr class="text-muted text-uppercase" style="font-size:11px;">
                         <th>No</th>
-                        <th>Logo</th>
                         <th>Nama Perusahaan</th>
                         <th>Bidang</th>
                         <th>Contact Person</th>
@@ -114,12 +113,6 @@ columns: [
     {
         data: 'DT_RowIndex',
         name: 'DT_RowIndex',
-        orderable: false,
-        searchable: false
-    },
-    {
-        data: 'foto',
-        name: 'foto',
         orderable: false,
         searchable: false
     },
@@ -307,8 +300,6 @@ $('#table tbody').on('click', '.btn-detail-pkl', function () {
                 img.addClass('d-none').attr('src', '');
             }
         }
-        $('#create-foto').on('change', function () { previewFile(this, '#create-foto-preview'); });
-        $('#update-foto').on('change', function () { previewFile(this, '#update-foto-preview'); });
 
         // Buka modal tambah
         $('[data-bs-target="#modal-create"]').on('click', function () {
@@ -425,10 +416,10 @@ $('#table tbody').on('click', '.btn-detail-pkl', function () {
         });
 
         // Hapus
-        $('#table tbody').on('click', '.btn-delete', function () {
+        $('#table tbody').on('click', '.btn-delete', async function () {
             const id = $(this).data('id');
 
-            if (!confirm('Yakin mau hapus data mitra ini?')) return;
+            if (!await konfirmasi('Yakin mau hapus data mitra ini?')) return;
 
             formMode = 'delete';
             const formData = new FormData();

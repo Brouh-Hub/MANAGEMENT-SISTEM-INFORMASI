@@ -1,514 +1,293 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Admin\SiswaController;
-use App\Http\Controllers\Admin\KerjasamaController;
-// Public Controllers
-use App\Http\Controllers\Admin\MitraController as AdminMitraController;
-use App\Http\Controllers\Public\HomeController;
-use App\Http\Controllers\Public\AboutController;
-use App\Http\Controllers\Public\BeritaController;
-use App\Http\Controllers\Public\KategoriBeritaController;
 
-// Surat Controllers
+// Login
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CaptchaController;
+
+// Admin
+use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\PengaturanSuratController;
+use App\Http\Controllers\Admin\MitraController;
+use App\Http\Controllers\Admin\DokumenKerjasamaController;
+
+// Persuratan
 use App\Http\Controllers\Surat\SuratMasukController;
 use App\Http\Controllers\Surat\SuratKeluarController;
 use App\Http\Controllers\Surat\SuratKeluarFieldController;
 use App\Http\Controllers\Surat\TemplateSuratController;
 use App\Http\Controllers\Surat\DisposisiController;
+use App\Http\Controllers\Surat\KonfirmasiSuratController;
 
-// Admin Controllers
-use App\Http\Controllers\Admin\SettingController;
-use App\Http\Controllers\Admin\DashboardController;
-use App\Http\Controllers\Admin\UserController;
-
-// Root Controllers
-use App\Http\Controllers\AuthController;
+// Sertifikat
 use App\Http\Controllers\SertifikatController;
 use App\Http\Controllers\TemplateSertifikatController;
 
+/*
+|==========================================================================
+| HALAMAN AWAL
+| Sistem ini tidak punya halaman publik: alamat utama langsung diarahkan
+| ke login (atau ke dashboard kalau sudah login).
+|==========================================================================
+*/
+Route::get('/', function () {
+    return auth()->check()
+        ? redirect()->route('admin.dashboard')
+        : redirect()->route('admin.login');
+})->name('home');
 
 
-
-// TU mengajukan surat kepada Kepala Sekolah
-
-
-Route::get(
-    '/sertifikat/siswa',
-    [SertifikatController::class, 'daftarSiswa']
-)->name('sertifikat.siswa');
-
-Route::get(
-    '/sertifikat/siswa/{id}/detail',
-    [SertifikatController::class, 'detailSiswa']
-)->name('sertifikat.siswa.detail');
-
-Route::get(
-    '/sertifikat/siswa/template',
-    [SertifikatController::class, 'templateSiswa']
-)->name('sertifikat.siswa.template');
-
-Route::post(
-    '/sertifikat/siswa/import',
-    [SertifikatController::class, 'importSiswa']
-)->name('sertifikat.siswa.import');
-// Public User Biasa routes
-Route::get('/', [HomeController::class, 'index'])->name('home');
-Route::get('/tentang-sekolah', [AboutController::class, 'index'])->name('about');
-Route::get('/berita', [BeritaController::class, 'index'])->name('berita.index');
-Route::get('/berita/{berita}', [BeritaController::class, 'show'])->name('berita.show');
-
-// Admin Atau Tu routes
+/*
+|==========================================================================
+| ADMIN  (semua alamat diawali /admin)
+|==========================================================================
+*/
 Route::prefix('admin')->group(function () {
 
-    Route::get('/login', [AuthController::class, 'showLogin'])
-        ->name('admin.login');
+    /*
+    |----------------------------------------------------------------------
+    | LOGIN (tamu)
+    |----------------------------------------------------------------------
+    */
+    Route::get('/login', [AuthController::class, 'showLogin'])->name('admin.login');
+    Route::post('/login', [AuthController::class, 'login'])->name('admin.login.submit');
 
-    Route::post('/login', [AuthController::class, 'login'])
-        ->name('admin.login.submit');
-
-    Route::middleware('auth')->group(function () {
-
-        Route::get('/dashboard', [DashboardController::class, 'index'])
-            ->name('admin.dashboard');
+    // Gambar captcha untuk form login
+    Route::get('/captcha', [CaptchaController::class, 'gambar'])
+        ->middleware('throttle:60,1')
+        ->name('admin.captcha');
 
 
-                       // Laporan rekap surat (cetak PDF)
-           Route::get('/laporan/pdf', [DashboardController::class, 'laporanPdf'])
-               ->middleware('jabatan:Kepala Sekolah,Tata Usaha')
-               ->name('laporan.pdf');
+    /*
+    |----------------------------------------------------------------------
+    | SEMUA HALAMAN DI BAWAH INI WAJIB LOGIN
+    |----------------------------------------------------------------------
+    */
+    // TanpaCache: halaman admin tidak disimpan browser, jadi setelah logout
+    // tombol Back tidak bisa menampilkan halaman lama (harus login ulang)
+    Route::middleware(['auth', \App\Http\Middleware\TanpaCache::class])->group(function () {
 
-                    // =========================================================
-        // DISPOSISI — SEMUA USER YANG LOGIN
-        // =========================================================
+        Route::post('/logout', [AuthController::class, 'logout'])->name('admin.logout');
+
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
+
+        // Laporan rekap surat (cetak PDF)
+        Route::get('/laporan/pdf', [DashboardController::class, 'laporanPdf'])
+            ->middleware('jabatan:Kepala Sekolah,Tata Usaha,Kepala Tata Usaha')
+            ->name('laporan.pdf');
+
+
+        /*
+        |------------------------------------------------------------------
+        | DISPOSISI — semua user yang login (penerima disposisi)
+        |------------------------------------------------------------------
+        */
         Route::get('/disposisi-saya', [DisposisiController::class, 'myDisposisi'])
             ->name('disposisi.saya');
-
         Route::put('/disposisi-saya/{disposisi}', [DisposisiController::class, 'updateStatus'])
             ->name('disposisi.update-status');
-
+        Route::post('/disposisi-saya/{disposisi}/baca', [DisposisiController::class, 'tandaiDibaca'])
+            ->name('disposisi.baca');
         Route::get('/disposisi-notifikasi', [DisposisiController::class, 'notifikasi'])
             ->name('disposisi.notifikasi');
-
         Route::get('/disposisi/{suratMasuk}/detail', [DisposisiController::class, 'detailSurat'])
             ->name('disposisi.detail');
 
-        Route::post('/disposisi/{disposisi}/teruskan', [DisposisiController::class, 'teruskan'])
-            ->middleware('jabatan:Kepala Sekolah')
-            ->name('disposisi.teruskan');
 
-            // ROUTE DISPOSISI — KHUSUS KEPALA SEKOLAH
-Route::middleware('jabatan:Kepala Sekolah')->group(function () {
-    Route::resource('disposisi', DisposisiController::class)
-        ->except(['create', 'edit', 'show']);
-
-    Route::get(
-        '/disposisi/{suratMasuk}/riwayat',
-        [DisposisiController::class, 'riwayat']
-    )->name('disposisi.riwayat');
-});
-
-
-        // TEMPEL ROUTE AJUKAN DI SINI
-        Route::post(
-            '/surat-keluar/{id}/ajukan',
-            [SuratKeluarController::class, 'ajukan']
-        )
-            ->middleware('jabatan:Tata Usaha')
-            ->name('surat-keluar.ajukan');
-
-
-        // KODE ROUTE LAIN TETAP LANJUT DI SINI
-
-        // =========================================================
-// HALAMAN SURAT KELUAR
-// =========================================================
-
-Route::get(
-    '/surat-keluar',
-    [SuratKeluarController::class, 'index']
-)
-    ->middleware('jabatan:Tata Usaha,Kepala Sekolah')
-    ->name('surat-keluar.index');
-
-
-// =========================================================
-// PREVIEW PDF
-// =========================================================
-
-Route::get(
-    '/surat-keluar/{id}/preview',
-    [SuratKeluarController::class, 'preview']
-)
-    ->middleware('jabatan:Tata Usaha,Kepala Sekolah')
-    ->name('surat-keluar.preview');
-
-
-// =========================================================
-// DOWNLOAD PDF
-// =========================================================
-
-Route::get(
-    '/surat-keluar/{id}/download',
-    [SuratKeluarController::class, 'download']
-)
-    ->middleware('jabatan:Tata Usaha,Kepala Sekolah')
-    ->name('surat-keluar.download');
-
-
-// =========================================================
-// APPROVE SURAT KELUAR — KEPALA SEKOLAH
-// =========================================================
-
-Route::post(
-    '/surat-keluar/{id}/approve',
-    [SuratKeluarController::class, 'approve']
-)
-    ->middleware('jabatan:Kepala Sekolah')
-    ->name('surat-keluar.approve');
-
-        // Generate Sertifikat — hanya Tata Usaha dan Waka Humas
-// Generate Sertifikat — hanya Tata Usaha dan Waka Humas
-Route::middleware('jabatan:Tata Usaha,Waka Humas')->group(function () {
-
-    // =========================================================
-    // DATA SISWA
-    // =========================================================
-
-    Route::get(
-        '/sertifikat/siswa',
-        [SertifikatController::class, 'daftarSiswa']
-    )->name('sertifikat.siswa');
-
-    Route::get(
-    '/sertifikat/siswa/{id}/detail',
-    [SertifikatController::class, 'detailSiswa']
-)->name('sertifikat.siswa.detail');
-
-
-    Route::get(
-        '/sertifikat/siswa/template',
-        [SertifikatController::class, 'templateSiswa']
-    )->name('sertifikat.siswa.template');
-
-
-    Route::post(
-        '/sertifikat/siswa/import',
-        [SertifikatController::class, 'importSiswa']
-    )->name('sertifikat.siswa.import');
-
-
-    // =========================================================
-    // CLEAR SEMUA DATA SISWA
-    // =========================================================
-
-    Route::post(
-        '/sertifikat/siswa/clear',
-        [SertifikatController::class, 'clearSemuaSiswa']
-    )->name('sertifikat.siswa.clear');
-
-
-    // =========================================================
-    // SERTIFIKAT
-    // =========================================================
-
-    Route::resource('sertifikat', SertifikatController::class)
-        ->except(['create', 'edit', 'show']);
-
-
-    // =========================================================
-    // GENERATE PDF
-    // =========================================================
-
-    Route::post(
-        '/sertifikat/{id}/generate',
-        [SertifikatController::class, 'generate']
-    )->name('sertifikat.generate');
-
-});
-
-        // Tata Usaha — mitra, users, surat masuk & keluar, template sertifikat
-        // (Kepala Sekolah tidak dapat akses ini)
-// =========================================================
-// MITRA INDUSTRI
-// =========================================================
-Route::middleware('jabatan:Tata Usaha,Waka Humas')->group(function () {
-
-    // CRUD Mitra
-    Route::resource('mitra', AdminMitraController::class)
-        ->except(['create', 'edit', 'show']);
-
-    // =====================================================
-    // PESERTA PKL DARI HALAMAN MITRA
-    // =====================================================
-
-    // Ambil semua peserta PKL dari mitra
-    Route::get(
-        '/mitra/{id}/pkl',
-        [AdminMitraController::class, 'pesertaPkl']
-    )->name('mitra.pkl');
-
-    // Ambil daftar siswa yang belum masuk ke kerja sama
-    Route::get(
-        '/mitra/{mitraId}/pkl/siswa',
-        [AdminMitraController::class, 'daftarSiswaPkl']
-    )->name('mitra.pkl.siswa');
-
-    // Tambah peserta PKL
-    Route::post(
-        '/mitra/{mitraId}/pkl',
-        [AdminMitraController::class, 'tambahPesertaPkl']
-    )->name('mitra.pkl.store');
-
-    // Hapus peserta PKL
-    Route::delete(
-        '/mitra/{mitraId}/pkl/{pklId}',
-        [AdminMitraController::class, 'hapusPesertaPkl']
-    )->name('mitra.pkl.destroy');
-
-
-    // =====================================================
-    // USER
-    // =====================================================
-
-    Route::resource('users', UserController::class)
-        ->except(['create', 'edit', 'show']);
-
-
-    // =====================================================
-    // SURAT MASUK
-    // =====================================================
-
-    Route::resource('surat-masuk', SuratMasukController::class)
-        ->except(['create', 'edit', 'show']);
-
-    // =====================================================
-    // SURAT KELUAR
-    // =====================================================
-
-    Route::get(
-        '/surat-keluar/create',
-        [SuratKeluarController::class, 'create']
-    )->name('surat-keluar.create');
-
-    Route::resource('surat-keluar', SuratKeluarController::class)
-        ->except(['index', 'create', 'edit', 'show']);
-
-    Route::post(
-        '/surat-keluar/{id}/generate-pdf',
-        [SuratKeluarController::class, 'generatePdf']
-    )->name('surat-keluar.generate-pdf');
-
-
-    // =====================================================
-    // TEMPLATE SURAT
-    // =====================================================
-
-    Route::get('/template-surat', function () {
-        return redirect()->route('surat-keluar.index');
-    })->name('template-surat.index');
-
-    Route::post(
-        '/template-surat',
-        [TemplateSuratController::class, 'store']
-    )->name('template-surat.store');
-
-    Route::put(
-        '/template-surat/{id}',
-        [TemplateSuratController::class, 'update']
-    )->name('template-surat.update');
-
-    Route::delete(
-        '/template-surat/{id}',
-        [TemplateSuratController::class, 'destroy']
-    )->name('template-surat.destroy');
-
-
-    // Editor Template Surat
-    Route::get(
-        '/surat-keluar/template/create',
-        [TemplateSuratController::class, 'create']
-    )->name('surat-keluar.template.create');
-
-    Route::get(
-        '/surat-keluar/template/{id}/edit',
-        [TemplateSuratController::class, 'edit']
-    )->name('surat-keluar.template.edit');
-
-    Route::post(
-        '/surat-keluar/template',
-        [TemplateSuratController::class, 'store']
-    )->name('surat-keluar.template.store');
-
-    Route::put(
-        '/surat-keluar/template/{id}',
-        [TemplateSuratController::class, 'update']
-    )->name('surat-keluar.template.update');
-
-    Route::delete(
-        '/surat-keluar/template/{id}',
-        [TemplateSuratController::class, 'destroy']
-    )->name('surat-keluar.template.destroy');
-
-
-    // =====================================================
-    // FIELD SURAT KELUAR
-    // =====================================================
-
-    Route::post(
-        'surat-keluar-fields',
-        [SuratKeluarFieldController::class, 'store']
-    );
-
-    Route::put(
-        'surat-keluar-fields/{field}',
-        [SuratKeluarFieldController::class, 'update']
-    );
-
-    Route::delete(
-        'surat-keluar-fields/{field}',
-        [SuratKeluarFieldController::class, 'destroy']
-    );
-
-
-    // =====================================================
-    // TEMPLATE SERTIFIKAT
-    // =====================================================
-
-    Route::resource(
-        'template-sertifikat',
-        TemplateSertifikatController::class
-    )->except(['create', 'show', 'edit']);
-
-    Route::get(
-        '/template-sertifikat/{id}/posisi',
-        [TemplateSertifikatController::class, 'posisi']
-    )->name('template-sertifikat.posisi');
-
-    Route::post(
-        '/template-sertifikat/{id}/posisi',
-        [TemplateSertifikatController::class, 'updatePosisi']
-    )->name('template-sertifikat.posisi.update');
-
-    Route::post(
-        '/template-sertifikat/{id}/gambar',
-        [TemplateSertifikatController::class, 'updateGambar']
-    )->name('template-sertifikat.gambar');
-
-});
-            Route::resource('users', UserController::class)->except(['create', 'edit', 'show']);
-
-            Route::resource('surat-masuk', SuratMasukController::class)->except(['create', 'edit', 'show']);
-            Route::post('/surat-masuk/{id}/disposisikan', [SuratMasukController::class, 'disposisikan'])->name('surat-masuk.disposisikan');
-
-            // Halaman Tambah Surat Keluar
-
-            // Surat keluar: simpan, ubah, hapus
-            Route::resource('surat-keluar', SuratKeluarController::class)
-                ->except(['index', 'create', 'edit', 'show']);
-
-            // Generate PDF surat keluar dari template
-            Route::post(
-                '/surat-keluar/{id}/generate-pdf',
-                [SuratKeluarController::class, 'generatePdf']
-            )->name('surat-keluar.generate-pdf');
-
-            // Template Surat dikelola langsung dari halaman Surat Keluar
-            Route::get('/template-surat', function () {
-                return redirect()->route('surat-keluar.index');
-            })->name('template-surat.index');
-
-            Route::post(
-                '/template-surat',
-                [TemplateSuratController::class, 'store']
-            )->name('template-surat.store');
-
-            Route::put(
-                '/template-surat/{id}',
-                [TemplateSuratController::class, 'update']
-            )->name('template-surat.update');
-
-            Route::delete(
-                '/template-surat/{id}',
-                [TemplateSuratController::class, 'destroy']
-            )->name('template-surat.destroy');
-
-            // Editor Template Surat di dalam modul Surat Keluar
-            Route::get(
-                '/surat-keluar/template/create',
-                [TemplateSuratController::class, 'create']
-            )->name('surat-keluar.template.create');
-
-            Route::get(
-                '/surat-keluar/template/{id}/edit',
-                [TemplateSuratController::class, 'edit']
-            )->name('surat-keluar.template.edit');
-
-            Route::post(
-                '/surat-keluar/template',
-                [TemplateSuratController::class, 'store']
-            )->name('surat-keluar.template.store');
-
-            Route::put(
-                '/surat-keluar/template/{id}',
-                [TemplateSuratController::class, 'update']
-            )->name('surat-keluar.template.update');
-
-            Route::delete(
-                '/surat-keluar/template/{id}',
-                [TemplateSuratController::class, 'destroy']
-            )->name('surat-keluar.template.destroy');
-
-            // Atur field form surat keluar
-            Route::post('surat-keluar-fields', [SuratKeluarFieldController::class, 'store']);
-            Route::put('surat-keluar-fields/{field}', [SuratKeluarFieldController::class, 'update']);
-            Route::delete('surat-keluar-fields/{field}', [SuratKeluarFieldController::class, 'destroy']);
-
-            Route::resource('template-sertifikat', TemplateSertifikatController::class)->except(['create', 'show', 'edit']);
-            Route::get('/template-sertifikat/{id}/posisi', [TemplateSertifikatController::class, 'posisi'])->name('template-sertifikat.posisi');
-            Route::post('/template-sertifikat/{id}/posisi', [TemplateSertifikatController::class, 'updatePosisi'])->name('template-sertifikat.posisi.update');
-            Route::post('/template-sertifikat/{id}/gambar', [TemplateSertifikatController::class, 'updateGambar'])->name('template-sertifikat.gambar');
+        /*
+        |------------------------------------------------------------------
+        | KEPALA SEKOLAH — disposisi & persetujuan surat keluar
+        |------------------------------------------------------------------
+        */
+        Route::middleware('jabatan:Kepala Sekolah')->group(function () {
+            Route::resource('disposisi', DisposisiController::class)
+                ->except(['create', 'edit', 'show']);
+
+            Route::get('/disposisi/{suratMasuk}/riwayat', [DisposisiController::class, 'riwayat'])
+                ->name('disposisi.riwayat');
+            Route::post('/disposisi/{disposisi}/teruskan', [DisposisiController::class, 'teruskan'])
+                ->name('disposisi.teruskan');
+            // Keputusan Kepsek: arsipkan surat
+            Route::post('/disposisi/{disposisi}/putuskan', [DisposisiController::class, 'putuskan'])
+                ->name('disposisi.putuskan');
+            // Hapus instruksi dari daftar "Terakhir Anda pakai"
+            Route::post('/disposisi-instruksi/hapus', [DisposisiController::class, 'hapusInstruksi'])
+                ->name('disposisi.instruksi.hapus');
+
+            // Setujui surat keluar
+            Route::post('/surat-keluar/{id}/approve', [SuratKeluarController::class, 'approve'])
+                ->name('surat-keluar.approve');
         });
 
-        Route::resource('berita', BeritaController::class)->except(['index', 'show', 'create', 'edit']);
-        Route::resource('kategori-berita', KategoriBeritaController::class)->except(['create', 'edit', 'show']);
 
-        // Setting bukan resource biasa — cuma index (tampil) & update (simpan)
-        Route::get('/setting', [SettingController::class, 'index'])->name('admin.setting');
-        Route::put('/setting', [SettingController::class, 'update'])->name('admin.setting.update');
+        /*
+        |------------------------------------------------------------------
+        | KEPALA TATA USAHA — konfirmasi surat masuk & keluar
+        |------------------------------------------------------------------
+        */
+        Route::middleware('jabatan:Kepala Tata Usaha')->group(function () {
+            Route::get('/konfirmasi-surat', [KonfirmasiSuratController::class, 'index'])
+                ->name('konfirmasi-surat.index');
+            Route::post('/konfirmasi-surat/{jenis}/{id}', [KonfirmasiSuratController::class, 'putuskan'])
+                ->whereIn('jenis', ['masuk', 'keluar'])
+                ->whereNumber('id')
+                ->name('konfirmasi-surat.putuskan');
+        });
 
-        Route::post('/logout', [AuthController::class, 'logout'])->name('admin.logout');
+
+        /*
+        |------------------------------------------------------------------
+        | SURAT KELUAR — lihat daftar & PDF
+        | (TU, Kepala Sekolah, Kepala TU)
+        |------------------------------------------------------------------
+        */
+        Route::get('/surat-keluar', [SuratKeluarController::class, 'index'])
+            ->middleware('jabatan:Tata Usaha,Kepala Sekolah')
+            ->name('surat-keluar.index');
+        Route::get('/surat-keluar/{id}/preview', [SuratKeluarController::class, 'preview'])
+            ->middleware('jabatan:Tata Usaha,Kepala Sekolah,Kepala Tata Usaha')
+            ->name('surat-keluar.preview');
+        Route::get('/surat-keluar/{id}/download', [SuratKeluarController::class, 'download'])
+            ->middleware('jabatan:Tata Usaha,Kepala Sekolah,Kepala Tata Usaha')
+            ->name('surat-keluar.download');
+
+
+        /*
+        |------------------------------------------------------------------
+        | MoU / PKS — lihat daftar (TU, Waka Humas, Kepala Sekolah)
+        |------------------------------------------------------------------
+        */
+        Route::get('/mou-pks', [DokumenKerjasamaController::class, 'index'])
+            ->middleware('jabatan:Tata Usaha,Waka Humas,Kepala Sekolah')
+            ->name('mou-pks.index');
+
+
+        /*
+        |------------------------------------------------------------------
+        | TATA USAHA — persuratan, user, pengaturan
+        |------------------------------------------------------------------
+        */
+        Route::middleware('jabatan:Tata Usaha')->group(function () {
+
+            // ---------- Pengaturan kop surat, penanda tangan & penomoran ----------
+            Route::get('/pengaturan-surat', [PengaturanSuratController::class, 'index'])
+                ->name('pengaturan-surat.index');
+            Route::put('/pengaturan-surat', [PengaturanSuratController::class, 'update'])
+                ->name('pengaturan-surat.update');
+            Route::get('/pengaturan-surat/contoh-pdf', [PengaturanSuratController::class, 'contohPdf'])
+                ->name('pengaturan-surat.contoh-pdf');
+            Route::put('/pengaturan-surat/penomoran', [PengaturanSuratController::class, 'simpanPenomoran'])
+                ->name('pengaturan-surat.penomoran');
+
+            // ---------- Manajemen User ----------
+            Route::resource('users', UserController::class)
+                ->except(['create', 'edit', 'show']);
+
+            // ---------- Surat Masuk ----------
+            // Perkiraan No. Agenda berikutnya (form Tambah surat masuk)
+            Route::get('/surat-masuk-agenda-berikutnya', [SuratMasukController::class, 'agendaBerikutnya'])
+                ->name('surat-masuk.agenda-berikutnya');
+            Route::resource('surat-masuk', SuratMasukController::class)
+                ->except(['create', 'edit', 'show']);
+
+            // ---------- Surat Keluar ----------
+            Route::get('/surat-keluar/create', [SuratKeluarController::class, 'create'])
+                ->name('surat-keluar.create');
+            // Generate nomor surat (TU memasukkan password sendiri)
+            Route::post('/surat-keluar/generate-nomor', [SuratKeluarController::class, 'generateNomor'])
+                ->name('surat-keluar.generate-nomor');
+            Route::resource('surat-keluar', SuratKeluarController::class)
+                ->except(['index', 'create', 'edit', 'show']);
+            Route::post('/surat-keluar/{id}/generate-pdf', [SuratKeluarController::class, 'generatePdf'])
+                ->name('surat-keluar.generate-pdf');
+            // Ajukan ke Kepala Tata Usaha
+            Route::post('/surat-keluar/{id}/ajukan', [SuratKeluarController::class, 'ajukan'])
+                ->name('surat-keluar.ajukan');
+
+            // ---------- Template Surat (dikelola dari halaman Surat Keluar) ----------
+            Route::get('/template-surat', fn () => redirect()->route('surat-keluar.index'))
+                ->name('template-surat.index');
+            Route::post('/template-surat', [TemplateSuratController::class, 'store'])
+                ->name('template-surat.store');
+            Route::put('/template-surat/{id}', [TemplateSuratController::class, 'update'])
+                ->name('template-surat.update');
+            Route::delete('/template-surat/{id}', [TemplateSuratController::class, 'destroy'])
+                ->name('template-surat.destroy');
+
+            Route::get('/surat-keluar/template/create', [TemplateSuratController::class, 'create'])
+                ->name('surat-keluar.template.create');
+            Route::get('/surat-keluar/template/{id}/edit', [TemplateSuratController::class, 'edit'])
+                ->name('surat-keluar.template.edit');
+            Route::post('/surat-keluar/template', [TemplateSuratController::class, 'store'])
+                ->name('surat-keluar.template.store');
+            Route::put('/surat-keluar/template/{id}', [TemplateSuratController::class, 'update'])
+                ->name('surat-keluar.template.update');
+            Route::delete('/surat-keluar/template/{id}', [TemplateSuratController::class, 'destroy'])
+                ->name('surat-keluar.template.destroy');
+
+            // ---------- Atur field form surat keluar ----------
+            Route::post('/surat-keluar-fields', [SuratKeluarFieldController::class, 'store']);
+            Route::put('/surat-keluar-fields/{field}', [SuratKeluarFieldController::class, 'update']);
+            Route::delete('/surat-keluar-fields/{field}', [SuratKeluarFieldController::class, 'destroy']);
+        });
+
+
+        /*
+        |------------------------------------------------------------------
+        | TATA USAHA & WAKA HUMAS — sertifikat PKL & mitra industri
+        |------------------------------------------------------------------
+        */
+        Route::middleware('jabatan:Tata Usaha,Waka Humas')->group(function () {
+
+            // ---------- Data siswa (import Excel) ----------
+            Route::get('/sertifikat/siswa', [SertifikatController::class, 'daftarSiswa'])
+                ->name('sertifikat.siswa');
+            Route::get('/sertifikat/siswa/template', [SertifikatController::class, 'templateSiswa'])
+                ->name('sertifikat.siswa.template');
+            Route::get('/sertifikat/siswa/{id}/detail', [SertifikatController::class, 'detailSiswa'])
+                ->name('sertifikat.siswa.detail');
+            Route::post('/sertifikat/siswa/import', [SertifikatController::class, 'importSiswa'])
+                ->name('sertifikat.siswa.import');
+            Route::post('/sertifikat/siswa/clear', [SertifikatController::class, 'clearSemuaSiswa'])
+                ->name('sertifikat.siswa.clear');
+            // Hapus satu siswa (beserta PKL & kerja sama/mitra hasil import yang jadi kosong)
+            Route::post('/sertifikat/siswa/{id}/hapus', [SertifikatController::class, 'hapusSiswa'])
+                ->name('sertifikat.siswa.hapus');
+
+            // ---------- Sertifikat ----------
+            Route::resource('sertifikat', SertifikatController::class)
+                ->except(['create', 'edit', 'show']);
+            Route::post('/sertifikat/{id}/generate', [SertifikatController::class, 'generate'])
+                ->name('sertifikat.generate');
+
+            // ---------- Template sertifikat ----------
+            Route::resource('template-sertifikat', TemplateSertifikatController::class)
+                ->except(['create', 'show', 'edit']);
+            Route::get('/template-sertifikat/{id}/posisi', [TemplateSertifikatController::class, 'posisi'])
+                ->name('template-sertifikat.posisi');
+            Route::post('/template-sertifikat/{id}/posisi', [TemplateSertifikatController::class, 'updatePosisi'])
+                ->name('template-sertifikat.posisi.update');
+            Route::post('/template-sertifikat/{id}/gambar', [TemplateSertifikatController::class, 'updateGambar'])
+                ->name('template-sertifikat.gambar');
+
+            // ---------- Mitra industri & peserta PKL ----------
+            Route::resource('mitra', MitraController::class)
+                ->except(['create', 'edit', 'show']);
+            Route::get('/mitra/{id}/pkl', [MitraController::class, 'pesertaPkl'])
+                ->name('mitra.pkl');
+            Route::get('/mitra/{mitraId}/pkl/siswa', [MitraController::class, 'daftarSiswaPkl'])
+                ->name('mitra.pkl.siswa');
+            Route::post('/mitra/{mitraId}/pkl', [MitraController::class, 'tambahPesertaPkl'])
+                ->name('mitra.pkl.store');
+            Route::delete('/mitra/{mitraId}/pkl/{pklId}', [MitraController::class, 'hapusPesertaPkl'])
+                ->name('mitra.pkl.destroy');
+
+            // ---------- MoU / PKS: tambah, ubah, hapus ----------
+            Route::resource('mou-pks', DokumenKerjasamaController::class)
+                ->parameters(['mou-pks' => 'mou_pk'])
+                ->only(['store', 'update', 'destroy']);
+        });
     });
-
-Route::middleware('jabatan:Tata Usaha,Waka Humas')->group(function () {
-
-    // Data kerja sama
-    Route::resource('kerjasama', KerjasamaController::class)
-        ->except(['create', 'edit', 'show']);
-
-    // Daftar peserta PKL pada suatu kerja sama
-    Route::get(
-        '/kerjasama/{id}/peserta',
-        [KerjasamaController::class, 'peserta']
-    )->name('kerjasama.peserta');
-
-    // Tambah peserta PKL
-    Route::post(
-        '/kerjasama/{id}/peserta',
-        [KerjasamaController::class, 'tambahPeserta']
-    )->name('kerjasama.peserta.store');
-
-    // Hapus peserta PKL
-    Route::delete(
-        '/kerjasama/{kerjasamaId}/peserta/{pklId}',
-        [KerjasamaController::class, 'hapusPeserta']
-    )->name('kerjasama.peserta.destroy');
-
-    // Data siswa untuk dropdown peserta PKL
-    Route::get(
-        '/kerjasama-daftar-siswa',
-        [KerjasamaController::class, 'daftarSiswa']
-    )->name('kerjasama.daftar-siswa');
-
 });
-

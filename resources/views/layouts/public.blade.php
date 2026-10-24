@@ -33,6 +33,15 @@
         .navbar-public .nav-link:hover {
             color: var(--brand);
         }
+        .navbar-public .brand { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .menu-hp .nav-link { display: block; margin: 0; padding: 10px 0; border-top: 1px solid #f0f1f5; }
+
+        @media (max-width: 767.98px) {
+            .hero { padding: 40px 0; }
+            .hero h1 { font-size: 1.6rem; }
+            footer { margin-top: 40px; padding: 28px 0; }
+        }
+
         .btn-login-widget {
             background: var(--brand);
             color: #fff;
@@ -69,14 +78,22 @@
                 <i class="fa fa-shield-halved"></i> {{ $sekolah->nama ?? 'SIM Sekolah' }}
             </a>
 
+            {{-- Menu desktop --}}
             <div class="d-none d-md-flex align-items-center">
-                <a href="{{ route('home') }}" class="nav-link {{ request()->routeIs('home') ? 'active' : '' }}">Beranda</a>
-                <a href="{{ route('about') }}" class="nav-link {{ request()->routeIs('about') ? 'active' : '' }}">Tentang Sekolah</a>
-                <a href="{{ route('mitra.public') }}" class="nav-link {{ request()->routeIs('mitra.public*') ? 'active' : '' }}">Kerjasama Industri</a>
-                <a href="{{ route('berita.index') }}" class="nav-link {{ request()->routeIs('berita.*') ? 'active' : '' }}">Berita</a>
+                @include('layouts.partials.menu-publik')
             </div>
 
-            </a>
+            {{-- Tombol menu HP --}}
+            <button class="btn btn-light d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#menu-publik-hp" aria-label="Buka menu">
+                <i class="fa fa-bars"></i>
+            </button>
+        </div>
+
+        {{-- Menu HP (buka-tutup) --}}
+        <div class="collapse d-md-none" id="menu-publik-hp">
+            <div class="container menu-hp pt-2">
+                @include('layouts.partials.menu-publik')
+            </div>
         </div>
     </nav>
 

@@ -11,7 +11,35 @@
             <h4 class="fw-bold mb-1">{{ $title }}</h4>
             <p class="text-muted mb-0">{{ $subtitle }}</p>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
+            {{-- Kelola template surat (editor) — khusus Tata Usaha --}}
+            @if(auth()->user()?->jabatan === 'Tata Usaha')
+                <div class="dropdown">
+                    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                        <i class="fa fa-file-lines"></i> Template
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" style="max-height:360px; overflow-y:auto;">
+                        <li>
+                            <a class="dropdown-item" href="{{ route('surat-keluar.template.create') }}">
+                                <i class="fa fa-plus me-2 text-primary"></i> Buat template baru
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><h6 class="dropdown-header">Ubah template</h6></li>
+                        @forelse(\App\Models\TemplateSurat::orderBy('nama_template')->get(['id', 'nama_template', 'is_active']) as $t)
+                            <li>
+                                <a class="dropdown-item" href="{{ route('surat-keluar.template.edit', $t->id) }}">
+                                    <i class="fa fa-pen me-2 text-muted"></i> {{ $t->nama_template }}
+                                    @unless($t->is_active)<span class="badge bg-secondary ms-1">nonaktif</span>@endunless
+                                </a>
+                            </li>
+                        @empty
+                            <li><span class="dropdown-item-text small text-muted">Belum ada template.</span></li>
+                        @endforelse
+                    </ul>
+                </div>
+            @endif
+
             <button type="button"
                     class="btn btn-outline-secondary btn-sm"
                     data-bs-toggle="modal"
@@ -67,7 +95,7 @@
         const fieldsUrl = "{{ url('admin/surat-keluar-fields') }}";
         const csrf      = $('meta[name="csrf-token"]').attr('content');
 
-        const STATUS = { draft: 'Draft', menunggu_approve: 'Menunggu Persetujuan', terbit: 'Disetujui' };
+        const STATUS = @json(\App\Models\SuratKeluar::STATUS);
 
         const table = $('#table').DataTable({
             serverSide: true,
@@ -202,14 +230,14 @@
         });
 
         // =========================================================
-// AJUKAN SURAT KEPADA KEPALA SEKOLAH
+// AJUKAN SURAT KEPADA KEPALA TATA USAHA
 // =========================================================
 
-$('#table tbody').on('click', '.btn-ajukan', function () {
+$('#table tbody').on('click', '.btn-ajukan', async function () {
 
     const id = $(this).data('id');
 
-    if (!confirm('Ajukan surat ini kepada Kepala Sekolah?')) {
+    if (!await konfirmasi('Ajukan surat ini kepada Kepala Tata Usaha untuk diperiksa?')) {
         return;
     }
 
@@ -427,6 +455,63 @@ setInterval(function () {
             $('#modal-update').modal('show');
         });
 
+        // ================= PREVIEW PDF DI MODAL DETAIL =================
+        const bisaBuatPdf = @json(auth()->user()?->jabatan === 'Tata Usaha');
+
+        function tampilkanPreviewSurat(detail) {
+            const $box  = $('#detail-preview').empty();
+            const $aksi = $('#detail-file-actions');
+
+            if (!detail.file_path) {
+                $aksi.attr('style', 'display:none !important;');
+                $box.html(`
+                    <div class="text-center text-muted px-3">
+                        <i class="fa fa-file-circle-exclamation fa-2x mb-2"></i>
+                        <div>PDF surat ini belum dibuat.</div>
+                        ${bisaBuatPdf ? `<button type="button" class="btn btn-sm btn-primary mt-3" id="btn-buat-pdf-detail" data-id="${detail.id}">
+                            <i class="fa fa-file-pdf"></i> Buat PDF sekarang
+                        </button>` : ''}
+                    </div>`);
+                return;
+            }
+
+            const base = `{{ url('admin/surat-keluar') }}/${detail.id}`;
+            const versi = encodeURIComponent(detail.updated_at ?? Date.now());
+
+            $('#detail-file-open').attr('href', `${base}/preview?v=${versi}`);
+            $('#detail-file-download').attr('href', `${base}/download`);
+            $aksi.attr('style', '');
+
+            $box.html($('<iframe>', {
+                src: `${base}/preview?v=${versi}`,
+                style: 'width:100%;height:100%;border:0;',
+                title: 'Preview surat keluar'
+            }));
+        }
+
+        // Buat PDF langsung dari modal detail (kalau belum ada)
+        $(document).on('click', '#btn-buat-pdf-detail', function () {
+            const $btn = $(this);
+            const id = $btn.data('id');
+
+            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Membuat PDF...');
+
+            $.post(`{{ url('admin/surat-keluar') }}/${id}/generate-pdf`)
+                .done(function () {
+                    tampilkanPreviewSurat({ id: id, file_path: 'ada', updated_at: Date.now() });
+                    table.ajax.reload(null, false);
+                })
+                .fail(function (xhr) {
+                    alert(xhr.responseJSON?.message ?? 'Gagal membuat PDF.');
+                    $btn.prop('disabled', false).html('<i class="fa fa-file-pdf"></i> Buat PDF sekarang');
+                });
+        });
+
+        // Kosongkan preview saat modal ditutup
+        $('#modal-detail').on('hidden.bs.modal', function () {
+            $('#detail-preview').empty();
+        });
+
         $('#table tbody').on('click', '.btn-detail', function () {
             const detail = $(this).data('detail');
 
@@ -436,6 +521,19 @@ setInterval(function () {
                 }
             }
             $('#detail-status').text(STATUS[detail.status] ?? detail.status ?? '-');
+
+            // Catatan Kepala Tata Usaha
+            if (detail.status === 'dikembalikan' && detail.alasan_konfirmasi) {
+                $('#detail-konfirmasi').html(`<span class="text-danger"><i class="fa fa-rotate-left"></i> Dikembalikan:</span> `)
+                    .append(document.createTextNode(detail.alasan_konfirmasi));
+            } else if (detail.dikonfirmasi_at) {
+                const oleh = detail.pengonfirmasi?.name ? ` oleh ${detail.pengonfirmasi.name}` : '';
+                $('#detail-konfirmasi').text(`Disetujui${oleh} (${new Date(detail.dikonfirmasi_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })})`);
+            } else {
+                $('#detail-konfirmasi').text(detail.status === 'menunggu_kepala_tu' ? 'Sedang diperiksa Kepala TU' : '-');
+            }
+
+            tampilkanPreviewSurat(detail);
 
             // tampilkan field tambahan (custom): label diambil dari form ubah
             $('#modal-detail tr.row-custom').remove();
@@ -455,10 +553,10 @@ setInterval(function () {
         });
 
         // Tombol Approve
-        $('#table tbody').on('click', '.btn-approve', function () {
+        $('#table tbody').on('click', '.btn-approve', async function () {
             const id = $(this).data('id');
 
-            if (!confirm('Setujui surat ini untuk diterbitkan?')) return;
+            if (!await konfirmasi('Setujui surat ini untuk diterbitkan?')) return;
 
             $.ajax({
                 url: `{{ url('admin/surat-keluar') }}/${id}/approve`,
@@ -475,10 +573,10 @@ setInterval(function () {
         });
 
         // Hapus
-        $('#table tbody').on('click', '.btn-delete', function () {
+        $('#table tbody').on('click', '.btn-delete', async function () {
             const id = $(this).data('id');
 
-            if (!confirm('Yakin mau hapus surat ini?')) return;
+            if (!await konfirmasi('Yakin mau hapus surat ini?')) return;
 
             formMode = 'delete';
             const formData = new FormData();
@@ -571,8 +669,8 @@ setInterval(function () {
         });
 
         // Hapus field custom
-        $(document).on('click', '.btn-field-delete', function () {
-            if (!confirm('Hapus field ini? Data lama yang sudah tersimpan tidak akan tampil lagi.')) return;
+        $(document).on('click', '.btn-field-delete', async function () {
+            if (!await konfirmasi('Hapus field ini? Data lama yang sudah tersimpan tidak akan tampil lagi.')) return;
             const tr = $(this).closest('tr');
 
             fieldAjax(`${fieldsUrl}/${tr.data('id')}`, 'DELETE')

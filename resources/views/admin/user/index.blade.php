@@ -83,6 +83,13 @@ $(document).ready(function () {
         let detail = $(this).data('detail');
         formMode = 'update';
 
+        // Jabatan lama yang belum ada di master tetap ditampilkan (ditandai)
+        const $jab = $('#update-jabatan');
+        $jab.find('option.jabatan-lama').remove();
+        if (detail.jabatan && !$jab.find('option').filter((i, o) => o.value === detail.jabatan).length) {
+            $jab.append($('<option class="jabatan-lama">').val(detail.jabatan).text(detail.jabatan + ' (lama, sebaiknya diganti)'));
+        }
+
         for (const key in detail) {
             if (detail.hasOwnProperty(key) && key !== 'password') {
                 $(`#update-${key}`).val(detail[key]);
@@ -92,10 +99,10 @@ $(document).ready(function () {
         $('#modal-update').modal('show');
     });
 
-    $('#table tbody').on('click', '.btn-delete', function () {
+    $('#table tbody').on('click', '.btn-delete', async function () {
         let id = $(this).data('id');
 
-        if (!confirm('Yakin mau hapus user ini?')) return;
+        if (!await konfirmasi('Yakin mau hapus user ini?')) return;
 
         let formData = new FormData();
         formData.append('_method', 'delete');

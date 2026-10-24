@@ -32,6 +32,9 @@
 <h3 class="fw-bold mb-1 page-title">{{ $title }}</h3>
 <p class="text-muted mb-3 mb-md-4 small">{{ $subtitle }}</p>
 
+{{-- Peringatan MoU/PKS yang hampir habis masa berlakunya --}}
+@include('admin.dashboard.partials.peringatan-mou')
+
 <div class="row g-2 g-md-3 mb-3 mb-md-4">
 
     <div class="{{ $isKepalaSekolah ? 'col-12 col-md-4' : 'col-12 col-md-6' }}">
@@ -179,7 +182,7 @@
 {{-- =========================================================
      LAPORAN REKAP SURAT (Kepala Sekolah & Tata Usaha)
      ========================================================= --}}
-@if(!empty($laporan))
+@if($laporan)
 <div class="card-panel mb-3 mb-md-4" id="laporan">
 
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">

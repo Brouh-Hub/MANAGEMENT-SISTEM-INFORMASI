@@ -724,12 +724,12 @@ $(document).ready(function () {
     $('#table tbody').on(
         'click',
         '.btn-delete',
-        function () {
+        async function () {
 
             const id =
                 $(this).data('id');
 
-            if (!confirm(
+            if (!await konfirmasi(
                 'Yakin mau hapus template surat ini?'
             )) {
                 return;

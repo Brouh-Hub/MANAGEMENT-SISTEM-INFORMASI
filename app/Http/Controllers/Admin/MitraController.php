@@ -25,7 +25,6 @@ class MitraController extends Controller
             'email'           => 'nullable|email|max:255',
             'website'         => 'nullable|url|max:255',
             'bidang'          => 'required|string|max:255',
-            'foto'            => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ];
     }
 
@@ -50,14 +49,6 @@ class MitraController extends Controller
             return DataTables::of($data)
 
                 ->addIndexColumn()
-
-                ->addColumn('foto_preview', function ($row) {
-                    return $row->foto_url
-                        ? '<img src="' . e($row->foto_url) . '"
-                                alt="foto"
-                                style="width:48px;height:48px;object-fit:cover;border-radius:8px;">'
-                        : '<span class="text-muted small">-</span>';
-                })
 
                 ->addColumn('jumlah_kerjasama', function ($row) {
                     return '<span class="badge bg-primary">'
@@ -102,7 +93,6 @@ class MitraController extends Controller
 })
 
                 ->rawColumns([
-                    'foto_preview',
                     'jumlah_kerjasama',
                     'pkl',
                     'actions',
@@ -142,12 +132,6 @@ class MitraController extends Controller
             $data = $validator->validated();
 
             $data['humas_id'] = auth()->id();
-
-            if ($request->hasFile('foto')) {
-                $data['foto'] = $request
-                    ->file('foto')
-                    ->store('mitra', 'public');
-            }
 
             Mitra::create($data);
 
@@ -193,22 +177,6 @@ class MitraController extends Controller
 
             $data = $validator->validated();
 
-            if ($request->hasFile('foto')) {
-
-                if ($mitra->foto) {
-                    Storage::disk('public')
-                        ->delete($mitra->foto);
-                }
-
-                $data['foto'] = $request
-                    ->file('foto')
-                    ->store('mitra', 'public');
-
-            } else {
-
-                unset($data['foto']);
-            }
-
             $mitra->update($data);
 
             return response()->json([
@@ -249,6 +217,11 @@ class MitraController extends Controller
             if ($mitra->foto) {
                 Storage::disk('public')
                     ->delete($mitra->foto);
+            }
+
+            // Berkas dokumen MoU/PKS milik mitra ini (datanya ikut terhapus lewat foreign key)
+            foreach ($mitra->dokumenKerjasama()->whereNotNull('file_path')->pluck('file_path') as $berkas) {
+                Storage::disk('public')->delete($berkas);
             }
 
             $mitra->delete();

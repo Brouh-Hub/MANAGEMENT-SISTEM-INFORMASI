@@ -23,11 +23,30 @@ class SuratKeluar extends Model
         'kepala_sekolah_id',
         'status',
         'data_tambahan',
+        'alasan_konfirmasi',
+        'dikonfirmasi_oleh',
+        'dikonfirmasi_at',
     ];
 
     protected $casts = [
-        'data_tambahan' => 'array',
+        'data_tambahan'   => 'array',
+        'dikonfirmasi_at' => 'datetime',
     ];
+
+    // Label status untuk tampilan
+    public const STATUS = [
+        'draft'              => 'Draft',
+        'menunggu_kepala_tu' => 'Menunggu Kepala TU',
+        'dikembalikan'       => 'Dikembalikan',
+        'menunggu_approve'   => 'Menunggu Kepala Sekolah',
+        'terbit'             => 'Disetujui',
+    ];
+
+    // Kepala Tata Usaha yang menyetujui / mengembalikan surat
+    public function pengonfirmasi()
+    {
+        return $this->belongsTo(User::class, 'dikonfirmasi_oleh');
+    }
 
     public function pembuat()
     {
