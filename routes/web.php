@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\ProfilController;
 use App\Http\Controllers\Admin\PengaturanSuratController;
 use App\Http\Controllers\Admin\MitraController;
+use App\Http\Controllers\Admin\SiswaController;
 use App\Http\Controllers\Admin\DokumenKerjasamaController;
 
 // Persuratan
@@ -252,18 +253,18 @@ Route::prefix('admin')->group(function () {
                 ->name('mou-pks.generate-nomor');
 
             // ---------- Data siswa (import Excel) ----------
-            Route::get('/sertifikat/siswa', [SertifikatController::class, 'daftarSiswa'])
+            Route::get('/sertifikat/siswa', [SiswaController::class, 'daftarSiswa'])
                 ->name('sertifikat.siswa');
-            Route::get('/sertifikat/siswa/template', [SertifikatController::class, 'templateSiswa'])
+            Route::get('/sertifikat/siswa/template', [SiswaController::class, 'templateSiswa'])
                 ->name('sertifikat.siswa.template');
-            Route::get('/sertifikat/siswa/{id}/detail', [SertifikatController::class, 'detailSiswa'])
+            Route::get('/sertifikat/siswa/{id}/detail', [SiswaController::class, 'detailSiswa'])
                 ->name('sertifikat.siswa.detail');
-            Route::post('/sertifikat/siswa/import', [SertifikatController::class, 'importSiswa'])
+            Route::post('/sertifikat/siswa/import', [SiswaController::class, 'importSiswa'])
                 ->name('sertifikat.siswa.import');
-            Route::post('/sertifikat/siswa/clear', [SertifikatController::class, 'clearSemuaSiswa'])
+            Route::post('/sertifikat/siswa/clear', [SiswaController::class, 'clearSemuaSiswa'])
                 ->name('sertifikat.siswa.clear');
             // Hapus satu siswa (beserta PKL & kerja sama/mitra hasil import yang jadi kosong)
-            Route::post('/sertifikat/siswa/{id}/hapus', [SertifikatController::class, 'hapusSiswa'])
+            Route::post('/sertifikat/siswa/{id}/hapus', [SiswaController::class, 'hapusSiswa'])
                 ->name('sertifikat.siswa.hapus');
 
             // ---------- Sertifikat ----------

@@ -17,6 +17,7 @@ class Pkl extends Model
         'tanggal_selesai',
         'tahun',
         'pembimbing_pkl',
+        'pembimbing_nip',
         'keterangan',
     ];
 

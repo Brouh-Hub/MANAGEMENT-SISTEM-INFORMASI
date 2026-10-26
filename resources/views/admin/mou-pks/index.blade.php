@@ -100,7 +100,7 @@
 <div class="modal fade" id="modal-form" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
-            <form id="form-mou" enctype="multipart/form-data" novalidate>
+            <form id="form-mou" enctype="multipart/form-data" novalidate class="d-flex flex-column overflow-hidden" style="max-height:100%">
                 <div class="modal-header">
                     <h5 class="modal-title" id="judul-form">Tambah Dokumen MoU/PKS</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>

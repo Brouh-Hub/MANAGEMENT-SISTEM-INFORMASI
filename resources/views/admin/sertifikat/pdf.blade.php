@@ -244,7 +244,12 @@ $replacements = [
             }
         @endphp
 
-        @if(trim((string) $text) !== '')
+        @if(!empty($field['line']))
+            <div
+                class="field"
+                style="left:{{ $field['x'] ?? 0 }}%;top:{{ $field['y'] ?? 0 }}%;width:{{ $field['w'] ?? 100 }}%;border-top:1px solid {{ $field['color'] ?? '#111111' }}"
+            ></div>
+        @elseif(trim((string) $text) !== '')
             <div
                 class="field"
                 style="{{ implode(';', $style) }}"
