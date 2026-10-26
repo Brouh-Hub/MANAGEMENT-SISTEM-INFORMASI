@@ -550,6 +550,11 @@
 
             <ul class="dropdown-menu profile-dropdown">
                 <li>
+                    <a class="dropdown-item" href="{{ route('profil.show') }}">
+                        <i class="fa fa-user me-2"></i> Profil Saya
+                    </a>
+                </li>
+                <li>
                     <form action="{{ route('admin.logout') }}" method="POST">
                         @csrf
                         <button type="submit" class="dropdown-item text-danger">

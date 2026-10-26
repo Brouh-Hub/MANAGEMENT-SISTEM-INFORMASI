@@ -9,6 +9,7 @@ use App\Http\Controllers\CaptchaController;
 // Admin
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\ProfilController;
 use App\Http\Controllers\Admin\PengaturanSuratController;
 use App\Http\Controllers\Admin\MitraController;
 use App\Http\Controllers\Admin\DokumenKerjasamaController;
@@ -72,6 +73,11 @@ Route::prefix('admin')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout'])->name('admin.logout');
 
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
+
+        // Profil — semua user yang login
+        Route::get('/profil', [ProfilController::class, 'show'])->name('profil.show');
+        Route::put('/profil', [ProfilController::class, 'update'])->name('profil.update');
+        Route::put('/profil/password', [ProfilController::class, 'password'])->name('profil.password');
 
         // Laporan rekap surat (cetak PDF)
         Route::get('/laporan/pdf', [DashboardController::class, 'laporanPdf'])
@@ -240,6 +246,10 @@ Route::prefix('admin')->group(function () {
         |------------------------------------------------------------------
         */
         Route::middleware('jabatan:Tata Usaha,Waka Humas')->group(function () {
+
+            // Generate nomor dokumen MoU/PKS (urutan sama dengan surat keluar)
+            Route::post('/mou-pks-generate-nomor', [SuratKeluarController::class, 'generateNomor'])
+                ->name('mou-pks.generate-nomor');
 
             // ---------- Data siswa (import Excel) ----------
             Route::get('/sertifikat/siswa', [SertifikatController::class, 'daftarSiswa'])

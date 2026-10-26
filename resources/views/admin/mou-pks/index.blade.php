@@ -130,7 +130,11 @@
 
                         <div class="col-md-6">
                             <label class="form-label">Nomor dokumen (sekolah) <span class="text-danger">*</span></label>
-                            <input type="text" name="nomor_dokumen" id="f-nomor_dokumen" class="form-control" placeholder="Contoh: 421.5/123/SMKN4-TPI/2026">
+                            @include('admin.surat-keluar.partials.input-nomor', [
+                                'inputId' => 'f-nomor_dokumen',
+                                'name'    => 'nomor_dokumen',
+                                'url'     => route('mou-pks.generate-nomor'),
+                            ])
                             <small class="text-danger error-msg" id="e-nomor_dokumen"></small>
                         </div>
                         <div class="col-md-6">

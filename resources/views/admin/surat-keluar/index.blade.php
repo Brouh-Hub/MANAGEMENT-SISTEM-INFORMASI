@@ -412,11 +412,11 @@ $('#table tbody').on('click', '.btn-ajukan', async function () {
     // Refresh otomatis setiap 5 detik.
 // Status berubah meskipun approval dilakukan dari halaman lain.
 
-setInterval(function () {
-    if (!document.hidden) {
-        table.ajax.reload(null, false);
-    }
-}, 5000);
+// setInterval(function () {
+//     if (!document.hidden) {
+//         table.ajax.reload(null, false);
+//     }
+// }, 5000);
 
 
     $('#form-update').on('submit', function (e) {

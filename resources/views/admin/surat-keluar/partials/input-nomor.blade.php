@@ -4,13 +4,14 @@
 |
 | Pakai:
 |   @include('admin.surat-keluar.partials.input-nomor', ['inputId' => 'create-nomor_surat'])
-| Jenis surat diambil dari select [name=template_surat_id] di form yang sama.
+| Jenis surat diambil dari select [name=template_surat_id] di form yang sama
+| (tanpa select itu = format Umum). Opsional: 'name' (nama input), 'url' (endpoint generate).
 --}}
-<div class="generate-nomor-wrap">
+<div class="generate-nomor-wrap" data-url="{{ $url ?? route('surat-keluar.generate-nomor') }}">
     <div class="input-group">
         <input
             type="text"
-            name="nomor_surat"
+            name="{{ $name ?? 'nomor_surat' }}"
             id="{{ $inputId }}"
             class="form-control bg-light input-nomor-generate"
             placeholder="Klik Generate"
@@ -41,7 +42,6 @@
 @push('scripts')
 <script>
 $(function () {
-    const urlGenerate = @json(route('surat-keluar.generate-nomor'));
 
     function kotak(el) { return $(el).closest('.generate-nomor-wrap'); }
 
@@ -76,7 +76,7 @@ $(function () {
         $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
 
         $.ajax({
-            url: urlGenerate,
+            url: $w.data('url'),
             method: 'POST',
             data: {
                 _token: $('meta[name="csrf-token"]').attr('content'),
