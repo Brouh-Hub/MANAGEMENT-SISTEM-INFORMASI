@@ -7,3 +7,7 @@
 /public/hot
 /public/build/
 /storage/*.key
+
+*.zip
+
+*.zip

@@ -96,3 +96,11 @@ if (! class_exists('finfo', false)) {
         function finfo_buffer($finfo, string $string, int $flags = FILEINFO_NONE, $context = null) { return $finfo->buffer($string); }
     }
 }
+
+/* mime_content_type() juga bagian dari ekstensi fileinfo; dipakai oleh RenderSurat. */
+if (! function_exists('mime_content_type')) {
+    function mime_content_type($filename)
+    {
+        return (new finfo(FILEINFO_MIME_TYPE))->file($filename);
+    }
+}
