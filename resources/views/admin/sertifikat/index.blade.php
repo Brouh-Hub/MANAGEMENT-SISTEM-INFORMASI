@@ -417,12 +417,12 @@
                                             Sangat Baik
                                         </option>
 
-                                        <option value="Baik">
-                                            Baik
+                                        <option value="Cukup Baik">
+                                            Cukup Baik
                                         </option>
 
-                                        <option value="Cukup">
-                                            Cukup
+                                        <option value="Biasa">
+                                            Biasa
                                         </option>
 
                                     </select>

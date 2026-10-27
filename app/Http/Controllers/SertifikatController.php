@@ -122,9 +122,9 @@ class SertifikatController extends Controller
                 $pkl,
                 'nullable',
                 Rule::in([
+                    'Biasa',
+                    'Cukup Baik',
                     'Sangat Baik',
-                    'Baik',
-                    'Cukup',
                 ]),
             ],
 
@@ -261,6 +261,18 @@ class SertifikatController extends Controller
                                 class="d-inline">
 
                                 ' . csrf_field() . '
+
+                                <select
+                                    name="predikat"
+                                    class="form-select form-select-sm d-inline-block w-auto"
+                                    required>
+
+                                    <option value="" selected disabled>Pilih Grade</option>
+                                    <option value="Biasa">Biasa</option>
+                                    <option value="Cukup Baik">Cukup Baik</option>
+                                    <option value="Sangat Baik">Sangat Baik</option>
+
+                                </select>
 
                                 <button
                                     type="submit"
@@ -469,8 +481,16 @@ class SertifikatController extends Controller
     */
 
     public function generate(
+        Request $request,
         string $id
     ) {
+
+        $request->validate([
+            'predikat' => [
+                'required',
+                Rule::in(['Biasa', 'Cukup Baik', 'Sangat Baik']),
+            ],
+        ]);
 
         try {
 
@@ -574,7 +594,7 @@ class SertifikatController extends Controller
                             ?? '-',
 
                         'predikat' =>
-                            'Sangat Baik',
+                            $request->predikat,
 
                         'pimpinan_jabatan' =>
                             'Kepala Sekolah',
@@ -628,8 +648,7 @@ class SertifikatController extends Controller
                         ?? '-',
 
                     'predikat' =>
-                        $sertifikat->predikat
-                        ?: 'Sangat Baik',
+                        $request->predikat,
 
                     'pimpinan_jabatan' =>
                         $sertifikat->pimpinan_jabatan

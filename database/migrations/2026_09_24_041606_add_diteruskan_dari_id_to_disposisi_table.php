@@ -6,22 +6,19 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-    public function up()
+    public function up(): void
     {
+        if (Schema::hasColumn('disposisi', 'diteruskan_dari_id')) {
+            return; // sudah dibuat oleh migrasi sebelumnya
+        }
+
         Schema::table('disposisi', function (Blueprint $table) {
             $table->foreignId('diteruskan_dari_id')->nullable()->constrained('disposisi')->nullOnDelete();
         });
     }
-    /**
-     * Reverse the migrations.
-     */
+
     public function down(): void
     {
-        Schema::table('disposisi', function (Blueprint $table) {
-            //
-        });
+        //
     }
 };

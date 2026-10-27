@@ -191,6 +191,16 @@ public function daftarSiswa(Request $request)
 
                         ' . csrf_field() . '
 
+                        <select
+                            name="predikat"
+                            class="form-select form-select-sm d-inline-block w-auto"
+                            required>
+                            <option value="" selected disabled>Pilih Grade</option>
+                            <option value="Biasa">Biasa</option>
+                            <option value="Cukup Baik">Cukup Baik</option>
+                            <option value="Sangat Baik">Sangat Baik</option>
+                        </select>
+
                         <button
                             type="submit"
                             class="btn btn-sm text-white"
