@@ -388,7 +388,8 @@
                Tabel yang tetap ingin digeser ke samping: beri class "tabel-geser". */
             .main-content .card-panel table.table:not(.table-borderless):not(.tabel-geser) thead { display: none; }
             .main-content .card-panel table.table:not(.table-borderless):not(.tabel-geser),
-            .main-content .card-panel table.table:not(.table-borderless):not(.tabel-geser) tbody { display: block; width: 100% !important; }
+            .main-content .card-panel table.table:not(.table-borderless):not(.tabel-geser) tbody,
+            .main-content .card-panel table.table:not(.table-borderless):not(.tabel-geser) tfoot { display: block; width: 100% !important; }
             .main-content .card-panel table.table:not(.table-borderless):not(.tabel-geser) tr {
                 display: block;
                 background: #fff;
@@ -799,7 +800,7 @@
             const judul = $(tabel).find('thead th').map((i, th) => $(th).text().trim()).get();
             if (!judul.length) return;
 
-            $(tabel).find('tbody tr').each(function () {
+            $(tabel).find('tbody tr, tfoot tr').each(function () {
                 $(this).children('td').each(function (i) {
                     const label = judul[i] ?? '';
                     $(this).attr('data-label', /^aksi$/i.test(label) ? '' : label);
