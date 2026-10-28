@@ -42,9 +42,11 @@ class SiswaController extends Controller
             ->latest('id')
             ->first();
 
-        $sertifikat = Sertifikat::where(
-            'nis',
-            $siswa->nis
+        // Siswa tanpa NIS: cocokkan lewat nama, jangan sampai kena sertifikat siswa lain
+        $sertifikat = Sertifikat::when(
+            filled($siswa->nis),
+            fn ($q) => $q->where('nis', $siswa->nis),
+            fn ($q) => $q->whereNull('nis')->where('nama_penerima', $siswa->nama)
         )
             ->latest('id')
             ->first();
@@ -1088,6 +1090,26 @@ public function importSiswa(Request $request)
                 ': Tempat PKL kosong untuk "' .
                 $nama .
                 '".';
+
+            continue;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | TANGGAL PKL WAJIB (kolom kerja sama & PKL tidak boleh kosong)
+        |--------------------------------------------------------------------------
+        */
+
+        if (!$tanggalMulai || !$tanggalSelesai) {
+
+            $hasil['dilewati']++;
+
+            $hasil['catatan'][] =
+                'Baris ' .
+                ($no + 2) .
+                ': Tanggal mulai/selesai PKL kosong atau tidak terbaca untuk "' .
+                $nama .
+                '". Data PKL dilewati.';
 
             continue;
         }

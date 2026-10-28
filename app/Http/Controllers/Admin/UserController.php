@@ -8,7 +8,9 @@ use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Exception;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Yajra\DataTables\Facades\DataTables;
 
 class UserController extends Controller
@@ -58,7 +60,7 @@ class UserController extends Controller
             'password' => 'required|string|min:6',
             'role'     => 'required|in:admin,super_admin',
             // Jabatan dipilih dari master jabatan (config/jabatan.php)
-            'jabatan'  => ['required', \Illuminate\Validation\Rule::in(config('jabatan.daftar', []))],
+            'jabatan'  => ['required', Rule::in(config('jabatan.daftar', []))],
         ], [
             'jabatan.required' => 'Pilih jabatan.',
             'jabatan.in'       => 'Jabatan tidak ada di daftar master jabatan.',
@@ -87,11 +89,11 @@ class UserController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:users,email,' . $id,
+            'email'    => ['required', 'email', Rule::unique('users', 'email')->ignore($id)],
             'password' => 'nullable|string|min:6',
             'role'     => 'required|in:admin,super_admin',
             // Jabatan dari master; jabatan lama user yang belum ada di daftar tetap boleh dipertahankan
-            'jabatan'  => ['required', \Illuminate\Validation\Rule::in(array_merge(
+            'jabatan'  => ['required', Rule::in(array_merge(
                 config('jabatan.daftar', []),
                 [(string) User::whereKey($id)->value('jabatan')]
             ))],
@@ -107,6 +109,12 @@ class UserController extends Controller
         try {
             $user = User::findOrFail($id);
             $data = $validator->validated();
+
+            // Jangan sampai sistem tidak punya Tata Usaha sama sekali
+            if ($user->jabatan === 'Tata Usaha' && $data['jabatan'] !== 'Tata Usaha'
+                && User::where('jabatan', 'Tata Usaha')->count() <= 1) {
+                return response()->json(['status' => 'error', 'message' => 'Ini satu-satunya akun Tata Usaha, jabatannya tidak bisa diubah.', 'data' => null], 422);
+            }
 
             if (!empty($data['password'])) {
                 $data['password'] = Hash::make($data['password']);
@@ -132,6 +140,27 @@ class UserController extends Controller
 
         try {
             $user = User::findOrFail($id);
+
+            if ($user->jabatan === 'Tata Usaha' && User::where('jabatan', 'Tata Usaha')->count() <= 1) {
+                return response()->json(['status' => 'error', 'message' => 'Ini satu-satunya akun Tata Usaha, tidak bisa dihapus.', 'data' => null], 422);
+            }
+
+            // Hapus user menghapus data miliknya lewat cascade: surat, disposisi, mitra, sertifikat, dst.
+            $punyaData = collect([
+                'disposisi'            => ['kepala_sekolah_id', 'tujuan_user_id'],
+                'industri'             => ['humas_id'],
+                'kerjasama'            => ['humas_id'],
+                'sertifikat'           => ['user_id_penerbit', 'user_id_penerima'],
+                'surat_keluar'         => ['user_id_pembuat'],
+                'template_sertifikat'  => ['created_by'],
+            ])->contains(fn ($kolom, $tabel) => DB::table($tabel)
+                ->where(fn ($q) => collect($kolom)->each(fn ($k) => $q->orWhere($k, $user->id)))
+                ->exists());
+
+            if ($punyaData) {
+                return response()->json(['status' => 'error', 'message' => 'User ini masih punya data (surat, disposisi, mitra, atau sertifikat) yang ikut terhapus bila akunnya dihapus. Ubah password atau jabatannya saja.', 'data' => null], 422);
+            }
+
             $user->delete();
 
             return response()->json(['status' => 'success', 'message' => 'Berhasil hapus user', 'data' => null], 200);

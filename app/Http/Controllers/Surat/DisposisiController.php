@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Yajra\DataTables\Facades\DataTables;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -18,6 +19,8 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class DisposisiController extends Controller
 {
+    private const JABATAN_BUKAN_PENERIMA = ['Tata Usaha', 'Kepala Sekolah'];
+
     // List surat masuk yang perlu didisposisikan (kepala sekolah)
     public function index(Request $request)
     {
@@ -67,7 +70,11 @@ class DisposisiController extends Controller
                 ->make(true);
         }
 
-        $penerimaOptions = User::whereNotNull('jabatan')->orderBy('jabatan')->get(['id', 'name', 'jabatan']);
+        // Tata Usaha & Kepala Sekolah tidak menerima disposisi (tidak ada menu "Disposisi Saya")
+        $penerimaOptions = User::whereNotNull('jabatan')
+            ->whereNotIn('jabatan', self::JABATAN_BUKAN_PENERIMA)
+            ->orderBy('jabatan')
+            ->get(['id', 'name', 'jabatan']);
 
         // Surat keluar yang sudah diajukan TU dan menunggu persetujuan Kepala Sekolah
         $suratKeluarMenunggu = SuratKeluar::with(['pembuat:id,name', 'pengonfirmasi:id,name'])
@@ -236,6 +243,11 @@ class DisposisiController extends Controller
     // Detail surat masuk (nomor, perihal, url pdf, + id disposisi milik kepala sekolah) untuk modal
     public function detailSurat(SuratMasuk $suratMasuk)
     {
+        // Hanya Kepala Sekolah, atau user yang menerima disposisi surat ini
+        $bolehLihat = auth()->user()?->jabatan === 'Kepala Sekolah'
+            || $suratMasuk->disposisi()->where('tujuan_user_id', auth()->id())->exists();
+        abort_unless($bolehLihat, 403);
+
         $disposisiKepsek = $suratMasuk->disposisi()
             ->where('tujuan_user_id', auth()->id())
             ->latest('id')
@@ -262,7 +274,7 @@ class DisposisiController extends Controller
     {
         abort_unless($disposisi->tujuan_user_id == auth()->id(), 403);
 
-        if ($disposisi->status !== 'pending') {
+        if (! in_array($disposisi->status, ['pending', 'diterima'], true)) {
             return response()->json([
                 'message' => 'Surat ini sudah diputuskan sebelumnya (' . $disposisi->status_label . ').',
             ], 422);
@@ -293,60 +305,6 @@ class DisposisiController extends Controller
         ]);
     }
 
-    // Simpan disposisi baru langsung (dipakai kalau belum ada disposisi otomatis ke kepsek sama sekali)
-    public function store(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'surat_masuk_id'   => 'required|exists:surat_masuk,id',
-            'tujuan_disposisi' => 'required|exists:users,id',
-            'sifat'            => 'required|in:sangat_segera,segera,rahasia,biasa',
-            'instruksi'        => 'required|string',
-            'catatan'          => 'nullable|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        Disposisi::create([
-            'surat_masuk_id'    => $request->surat_masuk_id,
-            'tujuan_user_id'    => $request->tujuan_disposisi,
-            'kepala_sekolah_id' => auth()->id(),
-            'sifat'             => $request->sifat,
-            'instruksi'         => $request->instruksi,
-            'catatan'           => $request->catatan,
-            'status'            => 'pending',
-            'tanggal_disposisi' => now(),
-        ]);
-
-        return response()->json(['message' => 'Disposisi berhasil dikirim.']);
-    }
-
-    // Update disposisi (misal kepala sekolah revisi instruksi/tujuan sebelum diproses staf)
-    public function update(Request $request, Disposisi $disposisi)
-    {
-        $validator = Validator::make($request->all(), [
-            'tujuan_disposisi' => 'required|exists:users,id',
-            'sifat'            => 'required|in:sangat_segera,segera,rahasia,biasa',
-            'instruksi'        => 'required|string',
-            'catatan'          => 'nullable|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        $disposisi->update([
-            'tujuan_user_id' => $request->tujuan_disposisi,
-            'sifat'          => $request->sifat,
-            'instruksi'      => $request->instruksi,
-            'catatan'        => $request->catatan,
-            'status'         => 'diproses', // tandai sudah didisposisikan Kepsek
-        ]);
-
-        return response()->json(['message' => 'Disposisi berhasil diperbarui.']);
-    }
-
     // Batalkan disposisi yang sudah diteruskan (hanya selama penerima belum memprosesnya)
     public function destroy(string $id)
     {
@@ -367,9 +325,22 @@ class DisposisiController extends Controller
                 ], 422);
             }
 
+            // Disposisi awal (otomatis dari Kepala TU) tidak boleh dihapus, hanya yang diteruskan
+            if (! $disposisi->diteruskan_dari_id) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Disposisi awal tidak bisa dihapus.',
+                ], 422);
+            }
+
             DB::transaction(function () use ($disposisi) {
                 // Kembalikan disposisi asal supaya surat bisa diteruskan lagi
-                if ($disposisi->diteruskan_dari_id) {
+                // (hanya jika tidak ada disposisi turunan lain yang masih aktif)
+                $adaTurunanLain = Disposisi::where('diteruskan_dari_id', $disposisi->diteruskan_dari_id)
+                    ->where('id', '!=', $disposisi->id)
+                    ->exists();
+
+                if (! $adaTurunanLain) {
                     Disposisi::where('id', $disposisi->diteruskan_dari_id)->update(['status' => 'pending']);
                 }
 
@@ -434,14 +405,19 @@ class DisposisiController extends Controller
     {
         abort_unless($disposisi->tujuan_user_id == auth()->id(), 403);
 
-        if (in_array($disposisi->status, ['diarsipkan', 'ditolak'], true)) {
+        if (in_array($disposisi->status, ['diarsipkan', 'ditolak', 'selesai'], true)) {
             return response()->json([
                 'message' => 'Surat ini sudah ' . strtolower($disposisi->status_label) . ', tidak bisa diteruskan.',
             ], 422);
         }
 
         $validator = Validator::make($request->all(), [
-            'tujuan_user_id' => 'required|exists:users,id',
+            'tujuan_user_id' => [
+                'required',
+                Rule::exists('users', 'id')->where(
+                    fn ($q) => $q->whereNotIn('jabatan', self::JABATAN_BUKAN_PENERIMA)
+                ),
+            ],
             'sifat'          => 'required|in:sangat_segera,segera,rahasia,biasa',
             'instruksi'      => 'required|string',
             'catatan'        => 'nullable|string',
@@ -455,6 +431,10 @@ class DisposisiController extends Controller
         InstruksiTersembunyi::tampilkanLagi(auth()->id(), (string) $request->instruksi);
 
         $baru = DB::transaction(function () use ($request, $disposisi) {
+            // Kunci baris supaya klik ganda tidak membuat disposisi ganda
+            $disposisi = Disposisi::lockForUpdate()->findOrFail($disposisi->id);
+            abort_if(in_array($disposisi->status, ['diarsipkan', 'ditolak', 'selesai'], true), 422, 'Status disposisi sudah berubah.');
+
             // Tandai disposisi asal (milik kepala sekolah) sebagai sudah diteruskan
             $disposisi->update(['status' => 'diteruskan']);
 

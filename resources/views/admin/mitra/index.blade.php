@@ -224,6 +224,9 @@ $('#table tbody').on('click', '.btn-detail-pkl', function () {
                 return;
             }
 
+            // Nama siswa berasal dari file Excel: escape agar tidak jadi HTML
+            const esc = v => $('<div>').text(v ?? '').html();
+
             // Tampilkan daftar siswa
             let html = '';
 
@@ -234,12 +237,12 @@ $('#table tbody').on('click', '.btn-detail-pkl', function () {
                         <td>${index + 1}</td>
 
                         <td>
-                            ${item.nis || '-'}
+                            ${esc(item.nis || '-')}
                         </td>
 
                         <td>
                             <strong>
-                                ${item.nama || '-'}
+                                ${esc(item.nama || '-')}
                             </strong>
                         </td>
 
@@ -253,7 +256,7 @@ $('#table tbody').on('click', '.btn-detail-pkl', function () {
 
                         <td>
                             <span class="badge bg-primary">
-                                ${item.status || 'Belum diketahui'}
+                                ${esc(item.status || 'Belum diketahui')}
                             </span>
                         </td>
                     </tr>
@@ -308,55 +311,6 @@ $('#table tbody').on('click', '.btn-detail-pkl', function () {
             $('#create-foto-preview').addClass('d-none').attr('src', '');
             $('.error-msg').text('');
         });
-
-        $('#table tbody').on('click','.btn-detail-pkl',function(){
-
-    const id = $(this).data('id');
-
-
-    $.ajax({
-
-        url: `/mitra/${id}/detail-pkl`,
-
-        method:'GET',
-
-        success:function(res){
-
-            let html = `
-                <h5>${res.mitra}</h5>
-                <b>Total PKL : ${res.jumlah} siswa</b>
-                <hr>
-            `;
-
-
-            res.data.forEach(item=>{
-
-                html += `
-                    <div>
-                        <b>${item.nama}</b>
-                        (${item.nis})
-                        <br>
-                        ${item.tanggal_mulai}
-                        -
-                        ${item.tanggal_selesai}
-                        <br>
-                        Status :
-                        ${item.status}
-                    </div>
-                    <hr>
-                `;
-
-            });
-
-
-            $('#isi-detail-pkl').html(html);
-            $('#modal-detail-pkl').modal('show');
-
-        }
-
-    });
-
-});
 
         // Simpan tambah
         $('#form-create').on('submit', function (e) {

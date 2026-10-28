@@ -4,7 +4,6 @@ use Illuminate\Support\Facades\Route;
 
 // Login
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\CaptchaController;
 
 // Admin
 use App\Http\Controllers\Admin\DashboardController;
@@ -55,12 +54,9 @@ Route::prefix('admin')->group(function () {
     |----------------------------------------------------------------------
     */
     Route::get('/login', [AuthController::class, 'showLogin'])->name('admin.login');
-    Route::post('/login', [AuthController::class, 'login'])->name('admin.login.submit');
-
-    // Gambar captcha untuk form login
-    Route::get('/captcha', [CaptchaController::class, 'gambar'])
-        ->middleware('throttle:60,1')
-        ->name('admin.captcha');
+    Route::post('/login', [AuthController::class, 'login'])
+        ->middleware('throttle:20,1')
+        ->name('admin.login.submit');
 
 
     /*
@@ -111,7 +107,7 @@ Route::prefix('admin')->group(function () {
         */
         Route::middleware('jabatan:Kepala Sekolah')->group(function () {
             Route::resource('disposisi', DisposisiController::class)
-                ->except(['create', 'edit', 'show']);
+                ->only(['index', 'destroy']);
 
             Route::get('/disposisi/{suratMasuk}/riwayat', [DisposisiController::class, 'riwayat'])
                 ->name('disposisi.riwayat');

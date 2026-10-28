@@ -9,7 +9,7 @@
     $jabatan = strtolower(trim($user->jabatan ?? ''));
 
     // Lonceng notifikasi hanya untuk jabatan yang menerima disposisi (bukan Kepala Sekolah & Tata Usaha)
-    $tampilNotif = !in_array($jabatan, ['kepala sekolah', 'tata usaha', 'kepala tata usaha']);
+    $tampilNotif = !in_array($jabatan, ['kepala sekolah', 'tata usaha']);
 
     // Generate Sertifikat hanya untuk Tata Usaha & Waka Humas
     $bisaSertifikat = in_array($jabatan, ['tata usaha', 'waka humas']);
@@ -188,9 +188,20 @@
         .badge-status {
             padding: 4px 10px;
             border-radius: 20px;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 600;
+            white-space: nowrap;
         }
+        .badge-status.dot::before {
+            content: '';
+            display: inline-block;
+            width: 6px; height: 6px;
+            margin-right: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            vertical-align: middle;
+        }
+        .badge-info { background: #E3F0FD; color: #1D5FA8; }
         .badge-selesai { background: #E3F9E5; color: #1B8A3E; }
         .badge-diproses { background: #FFF4DE; color: #B7791F; }
         .badge-belum { background: #FDE8E8; color: #C53030; }
@@ -489,6 +500,9 @@
                     @if($jumlahKonfirmasi)
                         <span class="badge rounded-pill bg-danger ms-auto">{{ $jumlahKonfirmasi }}</span>
                     @endif
+                </a>
+                <a href="{{ route('disposisi.saya') }}" class="nav-link {{ request()->routeIs('disposisi.saya*') ? 'active' : '' }}">
+                    <i class="fa fa-share"></i> Disposisi Saya
                 </a>
             @elseif($jabatan === 'tata usaha')
 

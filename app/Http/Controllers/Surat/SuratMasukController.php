@@ -7,6 +7,7 @@ use App\Models\SuratMasuk;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Exception;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Yajra\DataTables\Facades\DataTables;
 use App\Models\Disposisi;
@@ -204,7 +205,14 @@ class SuratMasukController extends Controller
             $surat = SuratMasuk::findOrFail($id);
             $data = $validator->validated();
 
+            if (! in_array($surat->status_konfirmasi, ['menunggu', 'dikembalikan'], true)) {
+                return response()->json(['status' => 'error', 'message' => 'Surat yang sudah disetujui Kepala Tata Usaha tidak bisa diubah.', 'data' => null], 422);
+            }
+
             if ($request->hasFile('file_surat')) {
+                if ($surat->file_path) {
+                    Storage::disk('public')->delete($surat->file_path);
+                }
                 $data['file_path'] = $request->file('file_surat')->store('surat-masuk', 'public');
             }
             unset($data['file_surat']);
@@ -234,6 +242,14 @@ class SuratMasukController extends Controller
     {
         try {
             $surat = SuratMasuk::findOrFail($id);
+
+            if (! in_array($surat->status_konfirmasi, ['menunggu', 'dikembalikan'], true)) {
+                return response()->json(['status' => 'error', 'message' => 'Surat yang sudah disetujui Kepala Tata Usaha tidak bisa dihapus.', 'data' => null], 422);
+            }
+
+            if ($surat->file_path) {
+                Storage::disk('public')->delete($surat->file_path);
+            }
             $surat->delete();
 
             return response()->json(['status' => 'success', 'message' => 'Berhasil hapus surat masuk', 'data' => null], 200);

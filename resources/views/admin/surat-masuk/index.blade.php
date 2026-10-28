@@ -1,4 +1,3 @@
-```blade
 @extends('layouts.main')
 @section('content')
 
@@ -285,10 +284,18 @@ $(document).ready(function () {
 
             error: function (response) {
                 if (response.status === 422) {
-                    const errors = response.responseJSON.errors;
+                    const errors = response.responseJSON?.errors;
+
+                    if (!errors) {
+                        alert(response.responseJSON?.message ?? 'Data tidak valid.');
+                        return;
+                    }
 
                     $.each(errors, function (field, messages) {
-                        $(`#${formMode}-error-${field}`).text(messages[0]);
+                        const target = $(`#${formMode}-error-${field}`);
+                        // Field tanpa elemen pesan (mis. file_surat) ditampilkan lewat alert
+                        if (target.length) target.text(messages[0]);
+                        else alert(messages[0]);
                     });
 
                     return;
@@ -304,4 +311,3 @@ $(document).ready(function () {
 });
 </script>
 @endpush
-```

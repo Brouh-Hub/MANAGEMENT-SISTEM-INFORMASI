@@ -8,9 +8,26 @@ return new class extends Migration
 {
     public function up()
     {
-        Schema::table('disposisi', function (Blueprint $table) {
-            $table->foreignId('diteruskan_dari_id')->nullable()->constrained('disposisi')->nullOnDelete();
-        });
+        // Tujuan disposisi: dari teks bebas (tujuan_disposisi) menjadi user (tujuan_user_id).
+        // Dibuat aman dijalankan ulang: database lama sudah punya kolom ini.
+        if (! Schema::hasColumn('disposisi', 'tujuan_user_id')) {
+            Schema::table('disposisi', function (Blueprint $table) {
+                $table->foreignId('tujuan_user_id')->nullable()->after('kepala_sekolah_id')
+                    ->constrained('users')->cascadeOnDelete();
+            });
+        }
+
+        if (Schema::hasColumn('disposisi', 'tujuan_disposisi')) {
+            Schema::table('disposisi', function (Blueprint $table) {
+                $table->dropColumn('tujuan_disposisi');
+            });
+        }
+
+        if (! Schema::hasColumn('disposisi', 'diteruskan_dari_id')) {
+            Schema::table('disposisi', function (Blueprint $table) {
+                $table->foreignId('diteruskan_dari_id')->nullable()->constrained('disposisi')->nullOnDelete();
+            });
+        }
     }
 
     public function down(): void

@@ -145,6 +145,7 @@ class PenomoranSurat extends Model
         } while (
             SuratKeluar::where('nomor_surat', $nomor)->exists()
             || NomorSuratReservasi::where('nomor_surat', $nomor)->exists()
+            || DokumenKerjasama::where('nomor_dokumen', $nomor)->exists()
         );
 
         $aturan->update([

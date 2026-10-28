@@ -365,6 +365,9 @@ $(function () {
                         <i class="fa fa-check"></i> Tandai Selesai
                     </button>`;
         }
+        if (status !== 'selesai') {
+            return `<span class="aksi-done btn-aksi-block">Tidak ada aksi (${status})</span>`;
+        }
         return `<span class="aksi-done btn-aksi-block"><i class="fa fa-circle-check"></i> Sudah selesai</span>`;
     }
 

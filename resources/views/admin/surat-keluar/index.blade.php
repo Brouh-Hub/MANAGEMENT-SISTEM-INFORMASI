@@ -12,47 +12,14 @@
             <p class="text-muted mb-0">{{ $subtitle }}</p>
         </div>
         <div class="d-flex gap-2 flex-wrap">
-            {{-- Kelola template surat (editor) — khusus Tata Usaha --}}
             @if(auth()->user()?->jabatan === 'Tata Usaha')
-                <div class="dropdown">
-                    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
-                        <i class="fa fa-file-lines"></i> Template
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end" style="max-height:360px; overflow-y:auto;">
-                        <li>
-                            <a class="dropdown-item" href="{{ route('surat-keluar.template.create') }}">
-                                <i class="fa fa-plus me-2 text-primary"></i> Buat template baru
-                            </a>
-                        </li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><h6 class="dropdown-header">Ubah template</h6></li>
-                        @forelse(\App\Models\TemplateSurat::orderBy('nama_template')->get(['id', 'nama_template', 'is_active']) as $t)
-                            <li>
-                                <a class="dropdown-item" href="{{ route('surat-keluar.template.edit', $t->id) }}">
-                                    <i class="fa fa-pen me-2 text-muted"></i> {{ $t->nama_template }}
-                                    @unless($t->is_active)<span class="badge bg-secondary ms-1">nonaktif</span>@endunless
-                                </a>
-                            </li>
-                        @empty
-                            <li><span class="dropdown-item-text small text-muted">Belum ada template.</span></li>
-                        @endforelse
-                    </ul>
-                </div>
+                <button type="button"
+                        class="btn btn-primary btn-sm"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modal-create">
+                    <i class="fa fa-plus"></i> Tambah Surat Keluar
+                </button>
             @endif
-
-            <button type="button"
-                    class="btn btn-outline-secondary btn-sm"
-                    data-bs-toggle="modal"
-                    data-bs-target="#modal-fields">
-                <i class="fa fa-gear"></i> Atur Field
-            </button>
-
-            <button type="button"
-                    class="btn btn-primary btn-sm"
-                    data-bs-toggle="modal"
-                    data-bs-target="#modal-create">
-                <i class="fa fa-plus"></i> Tambah Surat Keluar
-            </button>
         </div>
     </div>
 
@@ -92,7 +59,6 @@
 
         let formMode = 'create';
         const baseUrl   = "{{ route('surat-keluar.index') }}";
-        const fieldsUrl = "{{ url('admin/surat-keluar-fields') }}";
         const csrf      = $('meta[name="csrf-token"]').attr('content');
 
         const STATUS = @json(\App\Models\SuratKeluar::STATUS);
@@ -356,9 +322,14 @@ $('#table tbody').on('click', '.btn-ajukan', async function () {
 
                     error: function (xhr) {
 
+                        // Surat sudah tersimpan: tutup form supaya tidak disimpan dua kali
+                        table.ajax.reload(null, false);
+                        $('#form-create').trigger('reset');
+                        $('#modal-create').modal('hide');
+
                         alert(
-                            xhr.responseJSON?.message ??
-                            'Surat tersimpan, tetapi gagal membuat PDF.'
+                            (xhr.responseJSON?.message ?? 'Gagal membuat PDF.') +
+                            '\n\nSurat sudah tersimpan sebagai Draft. Buka detail surat lalu klik "Buat PDF sekarang".'
                         );
                     },
 
@@ -451,6 +422,34 @@ $('#table tbody').on('click', '.btn-ajukan', async function () {
             $('#form-update [data-custom-key]').each(function () {
                 $(this).val(extra[$(this).attr('data-custom-key')] ?? '');
             });
+
+            // isi surat dari template: input diambil dari daftar field template di form Tambah
+            const boxTpl = $('#update-template-fields').empty();
+            $('#update-template-fields-wrapper').addClass('d-none');
+
+            if (detail.template_surat_id) {
+                const raw = $(`#create-template-surat option[value="${detail.template_surat_id}"]`).attr('data-fields');
+                let tplFields = [];
+                try { tplFields = raw ? JSON.parse(raw) : []; } catch (e) { tplFields = []; }
+                const tersimpan = extra._template || {};
+
+                tplFields.forEach(function (field) {
+                    const nilai = escapeHtmlTemplate(tersimpan[field.key] ?? field.default_value ?? '');
+                    const req   = field.is_required ? 'required' : '';
+                    const input = field.type === 'textarea'
+                        ? `<textarea name="template_data[${field.key}]" class="form-control" rows="3" ${req}>${nilai}</textarea>`
+                        : `<input type="${field.type}" name="template_data[${field.key}]" class="form-control" value="${nilai}" ${req}>`;
+
+                    boxTpl.append(`
+                        <div class="mb-2">
+                            <label class="form-label">${escapeHtmlTemplate(field.label)}${field.is_required ? ' <span class="text-danger">*</span>' : ''}</label>
+                            ${input}
+                            <small class="text-danger error-msg" id="update-error-template_data-${field.key}"></small>
+                        </div>`);
+                });
+
+                if (tplFields.length) $('#update-template-fields-wrapper').removeClass('d-none');
+            }
 
             $('#modal-update').modal('show');
         });
@@ -618,65 +617,6 @@ $('#table tbody').on('click', '.btn-ajukan', async function () {
                 }
             });
         }
-
-        // ================= ATUR FIELD =================
-
-        // Tombol "Atur Field" di dalam modal Tambah/Ubah: tutup modal itu, lalu buka modal Atur Field
-        $(document).on('click', '.btn-open-fields', function () {
-            const current = $(this).closest('.modal');
-            current.one('hidden.bs.modal', function () {
-                $('#modal-fields').modal('show');
-            });
-            current.modal('hide');
-        });
-
-        function fieldAjax(url, method, data) {
-            return $.ajax({
-                url: url,
-                method: 'POST',
-                data: Object.assign({ _method: method, _token: csrf }, data || {})
-            });
-        }
-
-        function fieldFail(xhr) {
-            let msg = xhr.responseJSON?.message ?? 'Terjadi kesalahan.';
-            if (xhr.status === 422 && xhr.responseJSON?.errors) {
-                msg = Object.values(xhr.responseJSON.errors)[0][0];
-            }
-            alert(msg);
-        }
-
-        // Tambah field baru
-        $('#btn-field-add').on('click', function () {
-            const label = $('#new-field-label').val().trim();
-            if (!label) { alert('Label wajib diisi.'); return; }
-
-            fieldAjax(fieldsUrl, 'POST', { label: label, type: $('#new-field-type').val() })
-                .done(function () { location.reload(); })
-                .fail(fieldFail);
-        });
-
-        // Simpan perubahan label / aktif
-        $(document).on('click', '.btn-field-save', function () {
-            const tr = $(this).closest('tr');
-            const active = tr.find('.f-active');
-            const data = { label: tr.find('.f-label').val() };
-            if (active.length) data.is_active = active.is(':checked') ? 1 : 0;
-
-            fieldAjax(`${fieldsUrl}/${tr.data('id')}`, 'PUT', data)
-                .done(function () { location.reload(); })
-                .fail(fieldFail);
-        });
-
-        // Hapus field custom
-        $(document).on('click', '.btn-field-delete', async function () {
-            if (!await konfirmasi('Hapus field ini? Data lama yang sudah tersimpan tidak akan tampil lagi.')) return;
-            const tr = $(this).closest('tr');
-
-            fieldAjax(`${fieldsUrl}/${tr.data('id')}`, 'DELETE')
-                .done(function () { location.reload(); })
-                .fail(fieldFail);
-        });
     });
     </script>
     @endpush

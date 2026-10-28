@@ -11,6 +11,8 @@
     <button class="btn-aksi btn-aksi-selesai btn-buka-laporan" data-id="{{ $d->id }}">
         <i class="fa fa-check"></i> Tandai Selesai
     </button>
-@else
+@elseif($d->status === 'selesai')
     <span class="aksi-done"><i class="fa fa-circle-check"></i> Selesai</span>
+@else
+    <span class="aksi-done">{{ $d->status_label }}</span>
 @endif

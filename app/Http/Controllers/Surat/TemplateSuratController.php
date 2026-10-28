@@ -231,6 +231,14 @@ class TemplateSuratController extends Controller
         try {
             $template = TemplateSurat::findOrFail($id);
 
+            if (\App\Models\SuratKeluar::where('template_surat_id', $template->id)->exists()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Template masih dipakai surat keluar. Nonaktifkan saja supaya tidak muncul di form.',
+                    'data' => null,
+                ], 422);
+            }
+
             $template->delete();
 
             return response()->json([

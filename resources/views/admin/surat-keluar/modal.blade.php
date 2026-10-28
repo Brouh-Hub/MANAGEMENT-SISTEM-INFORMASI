@@ -50,6 +50,14 @@
                         <small class="text-danger error-msg" id="update-error-tanggal_surat"></small>
                     </div>
 
+                    {{-- Isi surat dari template (supaya surat yang dikembalikan bisa direvisi) --}}
+                    <div id="update-template-fields-wrapper" class="d-none">
+                        <hr>
+                        <div class="small text-muted mb-2">Isi surat (template)</div>
+                        <div id="update-template-fields"></div>
+                        <hr>
+                    </div>
+
                     {{-- Field custom --}}
                     @foreach($customs as $cf)
                         <div class="mb-2">
@@ -119,82 +127,6 @@
                         </table>
                     </div>
 
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal Atur Field -->
-<div class="modal fade" id="modal-fields">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Atur Field Form Surat Keluar</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p class="text-muted" style="font-size:13px;">
-                    Ubah teks label di atas field. Field bawaan tidak bisa dihapus.
-                    Field tambahan bisa dinonaktifkan atau dihapus. Halaman dimuat ulang otomatis setelah perubahan.
-                </p>
-
-                <table class="table table-sm align-middle">
-                    <thead>
-                        <tr>
-                            <th>Label</th>
-                            <th width="130">Tipe</th>
-                            <th width="70">Aktif</th>
-                            <th width="160">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($fields as $fl)
-                            <tr data-id="{{ $fl->id }}">
-                                <td><input type="text" class="form-control form-control-sm f-label" value="{{ $fl->label }}"></td>
-                                <td>
-                                    <span class="badge bg-light text-dark border">{{ $fl->type }}</span>
-                                    @if($fl->is_default)
-                                        <small class="text-muted">bawaan</small>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if(!$fl->is_default)
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input f-active" type="checkbox" @checked($fl->is_active)>
-                                        </div>
-                                    @else
-                                        <span class="text-muted">-</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    <button type="button" class="btn btn-sm btn-primary btn-field-save">Simpan</button>
-                                    @if(!$fl->is_default)
-                                        <button type="button" class="btn btn-sm btn-outline-danger btn-field-delete">Hapus</button>
-                                    @endif
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-
-                <hr>
-                <h6>Tambah Field Baru</h6>
-                <div class="row g-2">
-                    <div class="col-md-6">
-                        <input type="text" id="new-field-label" class="form-control" placeholder="Label field, contoh: Lampiran">
-                    </div>
-                    <div class="col-md-3">
-                        <select id="new-field-type" class="form-select">
-                            <option value="text">Teks pendek</option>
-                            <option value="textarea">Teks panjang</option>
-                            <option value="date">Tanggal</option>
-                            <option value="number">Angka</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <button type="button" id="btn-field-add" class="btn btn-success w-100">+ Tambah</button>
-                    </div>
                 </div>
             </div>
         </div>

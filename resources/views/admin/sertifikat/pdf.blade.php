@@ -48,7 +48,11 @@
 @php
     $pkl = \App\Models\Pkl::with('kerjasama.mitra')
         ->whereHas('siswa', function ($q) use ($sertifikat) {
-            $q->where('nis', $sertifikat->nis);
+            if (filled($sertifikat->nis)) {
+                $q->where('nis', $sertifikat->nis);
+            } else {
+                $q->whereNull('nis')->where('nama', $sertifikat->nama_penerima);
+            }
         })
         ->latest('id')
         ->first();

@@ -520,14 +520,14 @@ class SertifikatController extends Controller
                     'Y-m-d'
                 );
 
+            // Siswa tanpa NIS: cocokkan lewat nama, jangan sampai kena sertifikat siswa lain
             $sertifikat =
-                Sertifikat::where(
-                    'nis',
-                    $siswa->nis
-                )
-                    ->where(
-                        'template_key',
-                        'pkl'
+                Sertifikat::where('template_key', 'pkl')
+                    ->when(
+                        filled($siswa->nis),
+                        fn ($q) => $q->where('nis', $siswa->nis),
+                        fn ($q) => $q->whereNull('nis')
+                            ->where('nama_penerima', $siswa->nama)
                     )
                     ->latest('id')
                     ->first();

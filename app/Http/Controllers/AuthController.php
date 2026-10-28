@@ -7,6 +7,7 @@ use App\Models\LogLogin;
 use App\Models\Sekolah;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -28,7 +29,7 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $credentials = $request->validate([
-            'email'    => ['required', 'email'],
+            'email'    => ['required', 'email', 'max:255'],
             'password' => ['required'],
         ]);
 
@@ -66,7 +67,7 @@ class AuthController extends Controller
             'user_id'    => $userId,
             'email'      => $email,
             'ip'         => $request->ip(),
-            'user_agent' => $request->userAgent(),
+            'user_agent' => Str::limit((string) $request->userAgent(), 250, ''),
             'status'     => $status,
         ]);
     }

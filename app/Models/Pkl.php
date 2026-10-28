@@ -12,7 +12,6 @@ class Pkl extends Model
     protected $fillable = [
         'kerjasama_id',
         'siswa_id',
-        'industri_id',
         'tanggal_mulai',
         'tanggal_selesai',
         'tahun',
@@ -45,17 +44,6 @@ class Pkl extends Model
         return $this->belongsTo(
             Siswa::class,
             'siswa_id'
-        );
-    }
-
-    /**
-     * PKL belongs to Mitra Industri
-     */
-    public function mitra()
-    {
-        return $this->belongsTo(
-            Mitra::class,
-            'industri_id'
         );
     }
 

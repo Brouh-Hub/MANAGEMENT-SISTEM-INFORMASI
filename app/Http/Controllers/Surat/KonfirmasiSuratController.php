@@ -112,17 +112,24 @@ class KonfirmasiSuratController extends Controller
 
     private function putuskanMasuk(int $id, bool $setujui, ?string $alasan)
     {
-        $surat = SuratMasuk::find($id);
+        $kepalaSekolah = $setujui ? User::where('jabatan', 'Kepala Sekolah')->first() : null;
 
-        if (! $surat) {
-            return response()->json(['status' => 'error', 'message' => 'Surat masuk tidak ditemukan.'], 404);
+        if ($setujui && ! $kepalaSekolah) {
+            return response()->json(['status' => 'error', 'message' => 'Belum ada akun Kepala Sekolah. Buat akunnya dulu sebelum menyetujui surat.'], 422);
         }
 
-        if ($surat->status_konfirmasi !== 'menunggu') {
-            return response()->json(['status' => 'error', 'message' => 'Surat ini sudah dikonfirmasi sebelumnya.'], 422);
-        }
+        $hasil = DB::transaction(function () use ($id, $setujui, $alasan, $kepalaSekolah) {
+            // Kunci baris supaya klik ganda / dua Kepala TU tidak memproses dua kali
+            $surat = SuratMasuk::lockForUpdate()->find($id);
 
-        DB::transaction(function () use ($surat, $setujui, $alasan) {
+            if (! $surat) {
+                return ['Surat masuk tidak ditemukan.', 404];
+            }
+
+            if ($surat->status_konfirmasi !== 'menunggu') {
+                return ['Surat ini sudah dikonfirmasi sebelumnya.', 422];
+            }
+
             $surat->update([
                 'status_konfirmasi' => $setujui ? 'disetujui' : 'dikembalikan',
                 'alasan_konfirmasi' => $alasan,
@@ -131,24 +138,25 @@ class KonfirmasiSuratController extends Controller
             ]);
 
             // Disetujui -> masuk ke daftar disposisi Kepala Sekolah
-            // (sebelumnya dibuat langsung saat TU menyimpan surat)
             if ($setujui && ! $surat->disposisi()->exists()) {
-                $kepalaSekolah = User::where('jabatan', 'Kepala Sekolah')->first();
-
-                if ($kepalaSekolah) {
-                    Disposisi::create([
-                        'surat_masuk_id'    => $surat->id,
-                        'tujuan_user_id'    => $kepalaSekolah->id,
-                        'kepala_sekolah_id' => $kepalaSekolah->id,
-                        'sifat'             => 'biasa',
-                        'instruksi'         => 'Surat masuk baru, mohon ditindaklanjuti.',
-                        'catatan'           => null,
-                        'status'            => 'pending',
-                        'tanggal_disposisi' => now(),
-                    ]);
-                }
+                Disposisi::create([
+                    'surat_masuk_id'    => $surat->id,
+                    'tujuan_user_id'    => $kepalaSekolah->id,
+                    'kepala_sekolah_id' => $kepalaSekolah->id,
+                    'sifat'             => 'biasa',
+                    'instruksi'         => 'Surat masuk baru, mohon ditindaklanjuti.',
+                    'catatan'           => null,
+                    'status'            => 'pending',
+                    'tanggal_disposisi' => now(),
+                ]);
             }
+
+            return null;
         });
+
+        if ($hasil) {
+            return response()->json(['status' => 'error', 'message' => $hasil[0]], $hasil[1]);
+        }
 
         return response()->json([
             'status'  => 'success',
@@ -160,22 +168,30 @@ class KonfirmasiSuratController extends Controller
 
     private function putuskanKeluar(int $id, bool $setujui, ?string $alasan)
     {
-        $surat = SuratKeluar::find($id);
+        $hasil = DB::transaction(function () use ($id, $setujui, $alasan) {
+            $surat = SuratKeluar::lockForUpdate()->find($id);
 
-        if (! $surat) {
-            return response()->json(['status' => 'error', 'message' => 'Surat keluar tidak ditemukan.'], 404);
+            if (! $surat) {
+                return ['Surat keluar tidak ditemukan.', 404];
+            }
+
+            if ($surat->status !== 'menunggu_kepala_tu') {
+                return ['Surat ini tidak sedang menunggu konfirmasi Kepala TU.', 422];
+            }
+
+            $surat->update([
+                'status'            => $setujui ? 'menunggu_approve' : 'dikembalikan',
+                'alasan_konfirmasi' => $alasan,
+                'dikonfirmasi_oleh' => auth()->id(),
+                'dikonfirmasi_at'   => now(),
+            ]);
+
+            return null;
+        });
+
+        if ($hasil) {
+            return response()->json(['status' => 'error', 'message' => $hasil[0]], $hasil[1]);
         }
-
-        if ($surat->status !== 'menunggu_kepala_tu') {
-            return response()->json(['status' => 'error', 'message' => 'Surat ini tidak sedang menunggu konfirmasi Kepala TU.'], 422);
-        }
-
-        $surat->update([
-            'status'            => $setujui ? 'menunggu_approve' : 'dikembalikan',
-            'alasan_konfirmasi' => $alasan,
-            'dikonfirmasi_oleh' => auth()->id(),
-            'dikonfirmasi_at'   => now(),
-        ]);
 
         return response()->json([
             'status'  => 'success',

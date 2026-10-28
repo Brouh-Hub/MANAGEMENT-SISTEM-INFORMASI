@@ -14,6 +14,7 @@ use Yajra\DataTables\Facades\DataTables;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Services\RenderSurat;
+use App\Models\DokumenKerjasama;
 use App\Models\NomorSuratReservasi;
 use App\Models\PenomoranSurat;
 use Illuminate\Support\Facades\DB;
@@ -45,16 +46,16 @@ class SuratKeluarController extends Controller
                 ->addIndexColumn()
                 ->addColumn('status_badge', function ($row) {
                     $warna = [
-                        'draft'              => 'secondary',
-                        'menunggu_kepala_tu' => 'info',
-                        'dikembalikan'       => 'danger',
-                        'menunggu_approve'   => 'warning',
-                        'terbit'             => 'success',
+                        'draft'              => 'badge-arsip',
+                        'menunggu_kepala_tu' => 'badge-info',
+                        'dikembalikan'       => 'badge-ditolak',
+                        'menunggu_approve'   => 'badge-diproses',
+                        'terbit'             => 'badge-selesai',
                     ];
                     $label = SuratKeluar::STATUS[$row->status] ?? '-';
-                    $color = $warna[$row->status] ?? 'secondary';
+                    $color = $warna[$row->status] ?? 'badge-arsip';
 
-                    $html = '<span class="text-' . $color . '"><i class="fa fa-circle" style="font-size:8px;"></i> ' . $label . '</span>';
+                    $html = '<span class="badge-status dot ' . $color . '">' . $label . '</span>';
 
                     // Alasan dari Kepala Tata Usaha
                     if ($row->status === 'dikembalikan' && $row->alasan_konfirmasi) {
@@ -78,14 +79,18 @@ class SuratKeluarController extends Controller
                         <i class="fa fa-eye"></i>
                     </a>';
 
-                    // TOMBOL UBAH
-                    $btn .= '<a href="javascript:void(0)"
-                        class="btn-update btn btn-sm btn-light"
-                        data-detail="' . $detail . '"
-                        data-id="' . $row->id . '"
-                        title="Ubah">
-                        <i class="fa fa-pen"></i>
-                    </a>';
+                    $adalahTu = auth()->user()?->jabatan === 'Tata Usaha';
+
+                    // TOMBOL UBAH: hanya TU, selama surat masih Draft / Dikembalikan
+                    if ($adalahTu && in_array($row->status, ['draft', 'dikembalikan'], true)) {
+                        $btn .= '<a href="javascript:void(0)"
+                            class="btn-update btn btn-sm btn-light"
+                            data-detail="' . $detail . '"
+                            data-id="' . $row->id . '"
+                            title="Ubah">
+                            <i class="fa fa-pen"></i>
+                        </a>';
+                    }
 
                     // TOMBOL AJUKAN KE KEPALA TU: KHUSUS TU, STATUS DRAFT / DIKEMBALIKAN
                     if (
@@ -113,13 +118,15 @@ class SuratKeluarController extends Controller
                             <i class="fa fa-check"></i>
                         </a>';
                     }
-                    // TOMBOL HAPUS
-                    $btn .= '<a href="javascript:void(0)"
-                        class="btn-delete btn btn-sm btn-light text-danger"
-                        data-id="' . $row->id . '"
-                        title="Hapus">
-                        <i class="fa fa-trash"></i>
-                    </a>';
+                    // TOMBOL HAPUS: hanya TU, hanya surat Draft
+                    if ($adalahTu && $row->status === 'draft') {
+                        $btn .= '<a href="javascript:void(0)"
+                            class="btn-delete btn btn-sm btn-light text-danger"
+                            data-id="' . $row->id . '"
+                            title="Hapus">
+                            <i class="fa fa-trash"></i>
+                        </a>';
+                    }
 
                     $btn .= '</div>';
 
@@ -339,6 +346,11 @@ class SuratKeluarController extends Controller
 
         try {
             $surat = SuratKeluar::findOrFail($id);
+
+            if (! in_array($surat->status, ['draft', 'dikembalikan'], true)) {
+                return response()->json(['status' => 'error', 'message' => 'Surat yang sedang diperiksa atau sudah terbit tidak bisa diubah.', 'data' => null], 422);
+            }
+
             $data = $validator->validated();
             $data['tujuan'] = filled($data['tujuan'] ?? null) ? $data['tujuan'] : '-';
 
@@ -354,6 +366,9 @@ class SuratKeluarController extends Controller
             }
 
             if ($request->hasFile('file_surat')) {
+                if ($surat->file_path) {
+                    Storage::disk('public')->delete($surat->file_path);
+                }
                 $data['file_path'] = $request->file('file_surat')->store('surat-keluar', 'public');
             }
             unset($data['file_surat'], $data['custom'], $data['template_data']);
@@ -394,6 +409,14 @@ class SuratKeluarController extends Controller
     {
         try {
             $surat = SuratKeluar::findOrFail($id);
+
+            if ($surat->status !== 'draft') {
+                return response()->json(['status' => 'error', 'message' => 'Hanya surat berstatus Draft yang bisa dihapus.', 'data' => null], 422);
+            }
+
+            if ($surat->file_path) {
+                Storage::disk('public')->delete($surat->file_path);
+            }
             $surat->delete();
 
             return response()->json(['status' => 'success', 'message' => 'Berhasil hapus surat keluar', 'data' => null], 200);
@@ -410,6 +433,13 @@ class SuratKeluarController extends Controller
     try {
 
         $surat = SuratKeluar::with('templateSurat')->findOrFail($id);
+
+        if (! in_array($surat->status, ['draft', 'dikembalikan'], true)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'PDF hanya bisa dibuat ulang untuk surat Draft atau Dikembalikan.',
+            ], 422);
+        }
 
         /*
          * Isi surat dibuat di server dari template + data yang tersimpan,
@@ -577,29 +607,39 @@ class SuratKeluarController extends Controller
 
         $templateId = $request->filled('template_surat_id') ? (int) $request->input('template_surat_id') : null;
 
-        // Nomor yang pernah di-generate TU ini tapi suratnya belum jadi disimpan -> pakai lagi
-        $reservasi = NomorSuratReservasi::where('user_id', $user->id)
-            ->whereNull('surat_keluar_id')
-            ->where('template_surat_id', $templateId)
-            ->whereYear('created_at', now()->year)
-            ->oldest('id')
-            ->first();
+        // Semua dalam satu transaksi dengan baris aturan terkunci, supaya dua klik / dua TU
+        // tidak mendapat nomor yang sama.
+        [$reservasi, $dipakaiUlang] = DB::transaction(function () use ($templateId, $user) {
+            $aturan = PenomoranSurat::whereKey(PenomoranSurat::untukTemplate($templateId)->id)
+                ->lockForUpdate()
+                ->first();
 
-        $dipakaiUlang = (bool) $reservasi;
+            // Nomor yang pernah di-generate TU ini tapi suratnya belum jadi disimpan -> pakai lagi,
+            // asal nomornya benar-benar masih bebas dan sesuai format aturan yang berlaku sekarang.
+            $kandidat = NomorSuratReservasi::where('user_id', $user->id)
+                ->whereNull('surat_keluar_id')
+                ->where('template_surat_id', $templateId)
+                ->whereYear('created_at', now()->year)
+                ->oldest('id')
+                ->get()
+                ->first(fn ($r) => ! SuratKeluar::where('nomor_surat', $r->nomor_surat)->exists()
+                    && ! DokumenKerjasama::where('nomor_dokumen', $r->nomor_surat)->exists()
+                    && $aturan->susun((int) $r->nomor_urut, $r->created_at) === $r->nomor_surat);
 
-        if (! $reservasi) {
-            $reservasi = DB::transaction(function () use ($templateId, $user) {
-                [$nomor, $urut, $aturanId] = PenomoranSurat::ambilNomorBaru($templateId);
+            if ($kandidat) {
+                return [$kandidat, true];
+            }
 
-                return NomorSuratReservasi::create([
-                    'nomor_surat'        => $nomor,
-                    'nomor_urut'         => $urut,
-                    'penomoran_surat_id' => $aturanId,
-                    'template_surat_id'  => $templateId,
-                    'user_id'            => $user->id,
-                ]);
-            });
-        }
+            [$nomor, $urut, $aturanId] = PenomoranSurat::ambilNomorBaru($templateId);
+
+            return [NomorSuratReservasi::create([
+                'nomor_surat'        => $nomor,
+                'nomor_urut'         => $urut,
+                'penomoran_surat_id' => $aturanId,
+                'template_surat_id'  => $templateId,
+                'user_id'            => $user->id,
+            ]), false];
+        });
 
         return response()->json([
             'status'  => 'success',
@@ -647,7 +687,10 @@ class SuratKeluarController extends Controller
             $diajukanUlang = $surat->status === 'dikembalikan';
 
             $surat->update([
-                'status' => 'menunggu_kepala_tu',
+                'status'            => 'menunggu_kepala_tu',
+                'alasan_konfirmasi' => null,
+                'dikonfirmasi_oleh' => null,
+                'dikonfirmasi_at'   => null,
             ]);
 
             return response()->json([

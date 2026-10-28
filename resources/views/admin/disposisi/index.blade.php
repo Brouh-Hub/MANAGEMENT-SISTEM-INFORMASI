@@ -296,8 +296,8 @@ $(function () {
                 alert(res.message);
             },
             error: function (xhr) {
-                if (xhr.status === 422) {
-                    const errors = xhr.responseJSON.errors;
+                const errors = xhr.responseJSON?.errors;
+                if (xhr.status === 422 && errors) {
                     let msg = '';
                     Object.values(errors).forEach(e => msg += e[0] + '\n');
                     alert(msg);
