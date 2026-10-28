@@ -82,6 +82,11 @@ class DisposisiController extends Controller
             ->latest('id')
             ->get();
 
+        // Kartu ringkasan: surat masuk yang sudah lolos Kepala TU tapi belum didisposisikan
+        $masukBelumDisposisi = SuratMasuk::where('status_konfirmasi', 'disetujui')
+            ->whereDoesntHave('disposisi')
+            ->count();
+
         // Pilihan alasan cepat, diatur di config/disposisi.php
         $alasanArsip = config('disposisi.alasan_arsip', []);
 
@@ -117,6 +122,7 @@ class DisposisiController extends Controller
         return view('admin.disposisi.index', compact(
             'penerimaOptions',
             'suratKeluarMenunggu',
+            'masukBelumDisposisi',
             'alasanArsip',
             'instruksiTerakhir',
             'instruksiDariRiwayat',

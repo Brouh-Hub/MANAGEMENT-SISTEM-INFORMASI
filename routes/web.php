@@ -154,7 +154,7 @@ Route::prefix('admin')->group(function () {
         |------------------------------------------------------------------
         */
         Route::get('/surat-keluar', [SuratKeluarController::class, 'index'])
-            ->middleware('jabatan:Tata Usaha,Kepala Sekolah')
+            ->middleware('jabatan:Tata Usaha,Kepala Sekolah,Kepala Tata Usaha')
             ->name('surat-keluar.index');
         Route::get('/surat-keluar/{id}/preview', [SuratKeluarController::class, 'preview'])
             ->middleware('jabatan:Tata Usaha,Kepala Sekolah,Kepala Tata Usaha')
@@ -176,7 +176,35 @@ Route::prefix('admin')->group(function () {
 
         /*
         |------------------------------------------------------------------
-        | TATA USAHA — persuratan, user, pengaturan
+        | TATA USAHA & KEPALA TATA USAHA — input surat masuk & surat keluar
+        |------------------------------------------------------------------
+        */
+        Route::middleware('jabatan:Tata Usaha,Kepala Tata Usaha')->group(function () {
+
+            // ---------- Surat Masuk ----------
+            // Perkiraan No. Agenda berikutnya (form Tambah surat masuk)
+            Route::get('/surat-masuk-agenda-berikutnya', [SuratMasukController::class, 'agendaBerikutnya'])
+                ->name('surat-masuk.agenda-berikutnya');
+            Route::resource('surat-masuk', SuratMasukController::class)
+                ->except(['create', 'edit', 'show']);
+
+            // ---------- Surat Keluar ----------
+            // Generate nomor surat (TU memasukkan password sendiri)
+            Route::post('/surat-keluar/generate-nomor', [SuratKeluarController::class, 'generateNomor'])
+                ->name('surat-keluar.generate-nomor');
+            Route::resource('surat-keluar', SuratKeluarController::class)
+                ->except(['index', 'create', 'edit', 'show']);
+            Route::post('/surat-keluar/{id}/generate-pdf', [SuratKeluarController::class, 'generatePdf'])
+                ->name('surat-keluar.generate-pdf');
+            // Ajukan ke Kepala Tata Usaha
+            Route::post('/surat-keluar/{id}/ajukan', [SuratKeluarController::class, 'ajukan'])
+                ->name('surat-keluar.ajukan');
+        });
+
+
+        /*
+        |------------------------------------------------------------------
+        | TATA USAHA — user, pengaturan, template surat
         |------------------------------------------------------------------
         */
         Route::middleware('jabatan:Tata Usaha')->group(function () {
@@ -197,25 +225,6 @@ Route::prefix('admin')->group(function () {
 
             // ---------- Log Aktivitas Login ----------
             Route::get('/log-login', [LogLoginController::class, 'index'])->name('log-login.index');
-
-            // ---------- Surat Masuk ----------
-            // Perkiraan No. Agenda berikutnya (form Tambah surat masuk)
-            Route::get('/surat-masuk-agenda-berikutnya', [SuratMasukController::class, 'agendaBerikutnya'])
-                ->name('surat-masuk.agenda-berikutnya');
-            Route::resource('surat-masuk', SuratMasukController::class)
-                ->except(['create', 'edit', 'show']);
-
-            // ---------- Surat Keluar ----------
-            // Generate nomor surat (TU memasukkan password sendiri)
-            Route::post('/surat-keluar/generate-nomor', [SuratKeluarController::class, 'generateNomor'])
-                ->name('surat-keluar.generate-nomor');
-            Route::resource('surat-keluar', SuratKeluarController::class)
-                ->except(['index', 'create', 'edit', 'show']);
-            Route::post('/surat-keluar/{id}/generate-pdf', [SuratKeluarController::class, 'generatePdf'])
-                ->name('surat-keluar.generate-pdf');
-            // Ajukan ke Kepala Tata Usaha
-            Route::post('/surat-keluar/{id}/ajukan', [SuratKeluarController::class, 'ajukan'])
-                ->name('surat-keluar.ajukan');
 
             // ---------- Template Surat (dikelola dari halaman Surat Keluar) ----------
             Route::get('/template-surat', fn () => redirect()->route('surat-keluar.index'))

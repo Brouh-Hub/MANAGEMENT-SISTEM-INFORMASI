@@ -1,6 +1,11 @@
     @extends('layouts.main')
     @section('content')
 
+    @php
+        // Tata Usaha & Kepala Tata Usaha sama-sama boleh kelola surat keluar
+        $bisaKelolaSurat = in_array(auth()->user()?->jabatan, ['Tata Usaha', 'Kepala Tata Usaha'], true);
+    @endphp
+
     <div class="d-flex gap-2 mb-3">
         <a href="{{ route('surat-masuk.index') }}" class="btn {{ request()->routeIs('surat-masuk.*') ? 'btn-primary' : 'btn-light' }} btn-sm">Surat Masuk</a>
         <a href="{{ route('surat-keluar.index') }}" class="btn {{ request()->routeIs('surat-keluar.*') ? 'btn-primary' : 'btn-light' }} btn-sm">Surat Keluar</a>
@@ -12,7 +17,7 @@
             <p class="text-muted mb-0">{{ $subtitle }}</p>
         </div>
         <div class="d-flex gap-2 flex-wrap">
-            @if(auth()->user()?->jabatan === 'Tata Usaha')
+            @if($bisaKelolaSurat)
                 <button type="button"
                         class="btn btn-primary btn-sm"
                         data-bs-toggle="modal"
@@ -455,7 +460,7 @@ $('#table tbody').on('click', '.btn-ajukan', async function () {
         });
 
         // ================= PREVIEW PDF DI MODAL DETAIL =================
-        const bisaBuatPdf = @json(auth()->user()?->jabatan === 'Tata Usaha');
+        const bisaBuatPdf = @json($bisaKelolaSurat);
 
         function tampilkanPreviewSurat(detail) {
             const $box  = $('#detail-preview').empty();

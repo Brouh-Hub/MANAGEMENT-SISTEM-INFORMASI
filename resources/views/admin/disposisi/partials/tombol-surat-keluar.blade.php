@@ -22,6 +22,6 @@
         ],
     ];
 @endphp
-<button type="button" class="btn btn-sm btn-light btn-detail-surat-keluar" data-surat='@json($dataSurat)' title="Lihat & Setujui">
-    <i class="fa fa-eye"></i>
+<button type="button" class="btn btn-sm btn-primary btn-detail-surat-keluar" data-surat='@json($dataSurat)' title="Lihat & Setujui">
+    <i class="fa fa-magnifying-glass"></i> Periksa
 </button>

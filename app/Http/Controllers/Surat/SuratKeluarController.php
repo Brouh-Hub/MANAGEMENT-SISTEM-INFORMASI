@@ -79,7 +79,7 @@ class SuratKeluarController extends Controller
                         <i class="fa fa-eye"></i>
                     </a>';
 
-                    $adalahTu = auth()->user()?->jabatan === 'Tata Usaha';
+                    $adalahTu = in_array(auth()->user()?->jabatan, ['Tata Usaha', 'Kepala Tata Usaha'], true);
 
                     // TOMBOL UBAH: hanya TU, selama surat masih Draft / Dikembalikan
                     if ($adalahTu && in_array($row->status, ['draft', 'dikembalikan'], true)) {
@@ -94,7 +94,7 @@ class SuratKeluarController extends Controller
 
                     // TOMBOL AJUKAN KE KEPALA TU: KHUSUS TU, STATUS DRAFT / DIKEMBALIKAN
                     if (
-                        auth()->user()?->jabatan === 'Tata Usaha' &&
+                        $adalahTu &&
                         in_array($row->status, ['draft', 'dikembalikan'], true)
                     ) {
                         $btn .= '<a href="javascript:void(0)"

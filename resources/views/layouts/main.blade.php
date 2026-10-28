@@ -492,8 +492,9 @@
                 <a href="{{ route('mou-pks.index') }}" class="nav-link {{ request()->routeIs('mou-pks.*') ? 'active' : '' }}">
                     <i class="fa fa-file-signature"></i> MoU / PKS
                 </a>
-            @elseif($jabatan === 'kepala tata usaha')
-                {{-- Kepala Tata Usaha: periksa surat masuk & keluar sebelum ke Kepala Sekolah --}}
+            @elseif(in_array($jabatan, ['tata usaha', 'kepala tata usaha'], true))
+                {{-- Tata Usaha: tanpa menu Disposisi. Kepala Tata Usaha: menu yang sama + periksa surat & Disposisi Saya --}}
+                @if($jabatan === 'kepala tata usaha')
                 @php
                     $jumlahKonfirmasi = \App\Models\SuratMasuk::where('status_konfirmasi', 'menunggu')->count()
                         + \App\Models\SuratKeluar::where('status', 'menunggu_kepala_tu')->count();
@@ -507,36 +508,37 @@
                 <a href="{{ route('disposisi.saya') }}" class="nav-link {{ request()->routeIs('disposisi.saya*') ? 'active' : '' }}">
                     <i class="fa fa-share"></i> Disposisi Saya
                 </a>
-            @elseif($jabatan === 'tata usaha')
+                @endif
 
-                {{-- Tata Usaha: tanpa menu Disposisi & Disposisi Saya --}}
                 <a href="{{ route('surat-masuk.index') }}" class="nav-link {{ request()->routeIs('surat-masuk.*') ? 'active' : '' }}">
                     <i class="fa fa-inbox"></i> Surat Masuk
                 </a>
                 <a href="{{ route('surat-keluar.index') }}" class="nav-link {{ request()->routeIs('surat-keluar.*') ? 'active' : '' }}">
                     <i class="fa fa-paper-plane"></i> Surat Keluar
                 </a>
-                <div class="menu-label">Kerja Sama & Dokumen</div>
-                <a href="{{ route('mitra.index') }}" class="nav-link {{ request()->routeIs('mitra.*') ? 'active' : '' }}">
-                    <i class="fa fa-handshake"></i> Kerja Sama Industri
-                </a>
-                <a href="{{ route('mou-pks.index') }}" class="nav-link {{ request()->routeIs('mou-pks.*') ? 'active' : '' }}">
-                    <i class="fa fa-file-signature"></i> MoU / PKS
-                </a>
-                <a href="{{ route('sertifikat.index') }}" class="nav-link {{ request()->routeIs('sertifikat.*') ? 'active' : '' }}">
-                    <i class="fa fa-certificate"></i> Generate Sertifikat
-                </a>
+                @if($jabatan === 'tata usaha')
+                    <div class="menu-label">Kerja Sama & Dokumen</div>
+                    <a href="{{ route('mitra.index') }}" class="nav-link {{ request()->routeIs('mitra.*') ? 'active' : '' }}">
+                        <i class="fa fa-handshake"></i> Kerja Sama Industri
+                    </a>
+                    <a href="{{ route('mou-pks.index') }}" class="nav-link {{ request()->routeIs('mou-pks.*') ? 'active' : '' }}">
+                        <i class="fa fa-file-signature"></i> MoU / PKS
+                    </a>
+                    <a href="{{ route('sertifikat.index') }}" class="nav-link {{ request()->routeIs('sertifikat.*') ? 'active' : '' }}">
+                        <i class="fa fa-certificate"></i> Generate Sertifikat
+                    </a>
 
-                <div class="menu-label">Administrasi</div>
-                <a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
-                    <i class="fa fa-users"></i> Manajemen User
-                </a>
-                <a href="{{ route('log-login.index') }}" class="nav-link {{ request()->routeIs('log-login.*') ? 'active' : '' }}">
-                    <i class="fa fa-clock-rotate-left"></i> Log Aktivitas
-                </a>
-                <a href="{{ route('pengaturan-surat.index') }}" class="nav-link {{ request()->routeIs('pengaturan-surat.*') ? 'active' : '' }}">
-                    <i class="fa fa-stamp"></i> Pengaturan Surat
-                </a>
+                    <div class="menu-label">Administrasi</div>
+                    <a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
+                        <i class="fa fa-users"></i> Manajemen User
+                    </a>
+                    <a href="{{ route('log-login.index') }}" class="nav-link {{ request()->routeIs('log-login.*') ? 'active' : '' }}">
+                        <i class="fa fa-clock-rotate-left"></i> Log Aktivitas
+                    </a>
+                    <a href="{{ route('pengaturan-surat.index') }}" class="nav-link {{ request()->routeIs('pengaturan-surat.*') ? 'active' : '' }}">
+                        <i class="fa fa-stamp"></i> Pengaturan Surat
+                    </a>
+                @endif
             @else
                 {{-- Jabatan lain (Waka, Pembina OSIS, dst): lihat disposisi yang ditujukan ke mereka --}}
                 <a href="{{ route('disposisi.saya') }}" class="nav-link {{ request()->routeIs('disposisi.saya*') ? 'active' : '' }}">

@@ -17,68 +17,116 @@
         border-radius: 0 999px 999px 0; padding: 4px 9px 4px 6px; font-size: 13px; line-height: 1; cursor: pointer;
     }
     .chip-hapus:hover { background: #FDE8E8; color: #C53030; border-color: #F5C2C2; }
+
+    /* Ringkasan & tab: gaya yang sama dengan halaman Konfirmasi Surat */
+    .stat-konfirmasi { display:flex; align-items:center; gap:12px; }
+    .stat-konfirmasi .ikon { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+    .stat-konfirmasi .angka { font-size:22px; font-weight:700; line-height:1; }
+    .tab-konfirmasi .nav-link { color:#6c757d; font-weight:600; font-size:14px; border:0; border-bottom:2px solid transparent; border-radius:0; padding:10px 4px; margin-right:22px; }
+    .tab-konfirmasi .nav-link.active { color:#1624C4; border-bottom-color:#1624C4; background:transparent; }
+    .tab-konfirmasi .jumlah { background:#EEF0FD; color:#1624C4; border-radius:20px; padding:1px 8px; font-size:12px; margin-left:4px; }
+    .tabel-kepsek td, .tabel-kepsek th { font-size:13px; }
 </style>
 
-<h3 class="fw-bold mb-1">Disposisi Surat</h3>
-<p class="text-muted mb-4">Tentukan tujuan disposisi untuk surat masuk.</p>
-
-<div class="card-panel">
-    <table id="tableSurat" class="table align-middle w-100">
-        <thead>
-            <tr class="text-muted text-uppercase" style="font-size:11px;">
-                <th>No</th>
-                <th>Nomor Surat</th>
-                <th>Pengirim</th>
-                <th>Perihal</th>
-                <th>Tanggal Terima</th>
-                <th>Status Disposisi</th>
-                <th>Aksi</th>
-            </tr>
-        </thead>
-    </table>
+<div class="mb-3">
+    <h3 class="fw-bold mb-1">Disposisi Surat</h3>
+    <p class="text-muted mb-0">Tentukan tujuan disposisi surat masuk dan setujui surat keluar.</p>
 </div>
 
-<!-- Surat Keluar Menunggu Persetujuan -->
-<h5 class="fw-bold mt-5 mb-1">Surat Keluar Menunggu Persetujuan</h5>
-<p class="text-muted mb-3">Surat keluar yang diajukan Tata Usaha dan perlu persetujuan Anda.</p>
-
-<div class="card-panel">
-    <table class="table align-middle w-100">
-        <thead>
-            <tr class="text-muted text-uppercase" style="font-size:11px;">
-                <th>No</th>
-                <th>Nomor Surat</th>
-                <th>Perihal</th>
-                <th>Tujuan</th>
-                <th>Tanggal Surat</th>
-                <th>Aksi</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse($suratKeluarMenunggu as $i => $surat)
-                <tr style="font-size:13px;">
-                    <td>{{ $i + 1 }}</td>
-                    <td>{{ $surat->nomor_surat ?? '-' }}</td>
-                    <td>{{ $surat->perihal ?? '-' }}</td>
-                    <td>{{ $surat->tujuan ?? '-' }}</td>
-                    <td>{{ $surat->tanggal_surat ? \Carbon\Carbon::parse($surat->tanggal_surat)->format('d-m-Y') : '-' }}</td>
-                    <td>
-                        @include('admin.disposisi.partials.tombol-surat-keluar', ['surat' => $surat])
-                    </td>
-                </tr>
-            @empty
-                <tr>
-                    <td colspan="6" class="text-center text-muted py-4">
-                        Belum ada surat keluar yang menunggu persetujuan.
-                    </td>
-                </tr>
-            @endforelse
-        </tbody>
-    </table>
+{{-- ===================== RINGKASAN ===================== --}}
+<div class="row g-3 mb-3">
+    <div class="col-md-4">
+        <div class="card-panel stat-konfirmasi">
+            <div class="ikon" style="background:#EEF0FD; color:#1624C4;"><i class="fa fa-inbox"></i></div>
+            <div><div class="angka">{{ $masukBelumDisposisi }}</div><small class="text-muted">Surat masuk belum didisposisi</small></div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card-panel stat-konfirmasi">
+            <div class="ikon" style="background:#FFF4E5; color:#C26A00;"><i class="fa fa-paper-plane"></i></div>
+            <div><div class="angka">{{ $suratKeluarMenunggu->count() }}</div><small class="text-muted">Surat keluar menunggu persetujuan</small></div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card-panel stat-konfirmasi">
+            <div class="ikon" style="background:#FDECEC; color:#B02A37;"><i class="fa fa-envelope"></i></div>
+            <div><div class="angka">{{ $ringkasanAktivitas['belum_dibaca'] }}</div><small class="text-muted">Disposisi belum dibaca penerima</small></div>
+        </div>
+    </div>
 </div>
 
-{{-- Riwayat aktivitas Kepala Sekolah (timeline) --}}
-@include('admin.disposisi.partials.riwayat-aktivitas')
+<div class="card-panel">
+    <ul class="nav tab-konfirmasi border-bottom mb-3" role="tablist">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-masuk" type="button">Surat Masuk</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-keluar" type="button">
+            Surat Keluar <span class="jumlah">{{ $suratKeluarMenunggu->count() }}</span></button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-riwayat" type="button">Riwayat Aktivitas</button></li>
+    </ul>
+
+    <div class="tab-content">
+
+        {{-- ===================== SURAT MASUK ===================== --}}
+        <div class="tab-pane fade show active" id="tab-masuk">
+            <table id="tableSurat" class="table align-middle w-100 tabel-kepsek">
+                <thead>
+                    <tr class="text-muted text-uppercase" style="font-size:11px;">
+                        <th>No</th>
+                        <th>Nomor Surat</th>
+                        <th>Pengirim</th>
+                        <th>Perihal</th>
+                        <th>Tanggal Terima</th>
+                        <th>Status Disposisi</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+
+        {{-- ===================== SURAT KELUAR ===================== --}}
+        <div class="tab-pane fade" id="tab-keluar">
+            <p class="text-muted small mb-2">Surat keluar yang diajukan Tata Usaha dan perlu persetujuan Anda.</p>
+            <div class="table-responsive">
+                <table class="table align-middle w-100 tabel-kepsek mb-0">
+                    <thead>
+                        <tr class="text-muted text-uppercase" style="font-size:11px;">
+                            <th>No</th>
+                            <th>Nomor Surat</th>
+                            <th>Perihal</th>
+                            <th>Tujuan</th>
+                            <th>Tanggal Surat</th>
+                            <th class="text-end">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($suratKeluarMenunggu as $i => $surat)
+                            <tr>
+                                <td>{{ $i + 1 }}</td>
+                                <td>{{ $surat->nomor_surat ?? '-' }}</td>
+                                <td>{{ $surat->perihal ?? '-' }}</td>
+                                <td>{{ $surat->tujuan ?? '-' }}</td>
+                                <td>{{ $surat->tanggal_surat ? \Carbon\Carbon::parse($surat->tanggal_surat)->format('d-m-Y') : '-' }}</td>
+                                <td class="text-end">
+                                    @include('admin.disposisi.partials.tombol-surat-keluar', ['surat' => $surat])
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    <i class="fa fa-circle-check text-success"></i> Belum ada surat keluar yang menunggu persetujuan.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {{-- ===================== RIWAYAT AKTIVITAS ===================== --}}
+        <div class="tab-pane fade" id="tab-riwayat">
+            @include('admin.disposisi.partials.riwayat-aktivitas')
+        </div>
+    </div>
+</div>
 
 {{-- Modal detail surat keluar (preview + Setujui) --}}
 @include('admin.disposisi.partials.modal-surat-keluar')
@@ -252,6 +300,11 @@ $(function () {
             { data: 'aksi', name: 'aksi', orderable: false, searchable: false },
         ]
     });
+
+    // Pilih tab dari ?tab=keluar|riwayat
+    const tabAwal = new URLSearchParams(location.search).get('tab');
+    if (tabAwal) $(`[data-bs-target="#tab-${tabAwal}"]`).trigger('click');
+    $('button[data-bs-target="#tab-masuk"]').on('shown.bs.tab', () => table.columns.adjust());
 
     const modalDisposisi = new bootstrap.Modal(document.getElementById('modalDisposisi'));
     const modalRiwayat = new bootstrap.Modal(document.getElementById('modalRiwayat'));

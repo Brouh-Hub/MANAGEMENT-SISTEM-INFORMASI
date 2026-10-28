@@ -72,7 +72,7 @@ class AlurSuratTest extends TestCase
         $matriks = [
             // jabatan => [url => status]
             'Tata Usaha'        => ['/admin/surat-masuk' => 200, '/admin/surat-keluar' => 200, '/admin/disposisi' => 403, '/admin/konfirmasi-surat' => 403, '/admin/users' => 200],
-            'Kepala Tata Usaha' => ['/admin/surat-masuk' => 403, '/admin/surat-keluar' => 403, '/admin/disposisi' => 403, '/admin/konfirmasi-surat' => 200, '/admin/disposisi-saya' => 200, '/admin/users' => 403],
+            'Kepala Tata Usaha' => ['/admin/surat-masuk' => 200, '/admin/surat-keluar' => 200, '/admin/disposisi' => 403, '/admin/konfirmasi-surat' => 200, '/admin/disposisi-saya' => 200, '/admin/users' => 403, '/admin/pengaturan-surat' => 403, '/admin/log-login' => 403, '/admin/mitra' => 403, '/admin/mou-pks' => 403, '/admin/sertifikat' => 403],
             'Kepala Sekolah'    => ['/admin/surat-masuk' => 403, '/admin/surat-keluar' => 200, '/admin/disposisi' => 200, '/admin/konfirmasi-surat' => 403, '/admin/users' => 403],
             'Waka Humas'        => ['/admin/surat-masuk' => 403, '/admin/disposisi' => 403, '/admin/disposisi-saya' => 200, '/admin/mitra' => 200, '/admin/mou-pks' => 200, '/admin/users' => 403],
             'Waka Kurikulum'    => ['/admin/disposisi-saya' => 200, '/admin/surat-keluar' => 403, '/admin/mitra' => 403, '/admin/users' => 403],

@@ -44,10 +44,9 @@
     .aktv-jejak .laporan { color:#444; font-style:italic; }
 </style>
 
-<h5 class="fw-bold mt-5 mb-1">Riwayat Aktivitas</h5>
-<p class="text-muted mb-3">Apa saja yang sudah Anda lakukan dan sejauh mana tindak lanjutnya (90 hari terakhir).</p>
+<p class="text-muted small mb-3">Apa saja yang sudah Anda lakukan dan sejauh mana tindak lanjutnya (90 hari terakhir).</p>
 
-<div class="card-panel">
+<div>
 
     {{-- Ringkasan bulan ini --}}
     <div class="aktv-ringkas mb-3">
