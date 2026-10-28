@@ -427,6 +427,8 @@
             .main-content .card-panel table.table:not(.table-borderless):not(.tabel-geser) td[data-label=""]::before,
             .main-content .card-panel table.table:not(.table-borderless):not(.tabel-geser) td[colspan]::before { display: none; }
             .main-content .card-panel table.table:not(.table-borderless):not(.tabel-geser) td[colspan] { justify-content: center; text-align: center; }
+            /* Kolom kosong (mis. email/website belum diisi) tidak perlu tampil sebagai label saja */
+            .main-content .card-panel table.table:not(.table-borderless):not(.tabel-geser) td:empty { display: none; }
             /* Kolom aksi (berisi tombol) di baris paling bawah kartu */
             .main-content .card-panel table.table:not(.table-borderless):not(.tabel-geser) td.kolom-aksi {
                 border-top: 1px dashed #E6E8F0;
@@ -510,9 +512,10 @@
                 <a href="{{ route('surat-masuk.index') }}" class="nav-link {{ request()->routeIs('surat-masuk.*') ? 'active' : '' }}">
                     <i class="fa fa-inbox"></i> Surat Masuk
                 </a>
-                <a href="{{ route('surat-keluar.index', ['create' => 1]) }}" class="nav-link {{ request()->routeIs('surat-keluar.*') ? 'active' : '' }}">
-                    <i class="fa fa-plus-circle"></i> Tambah Surat Keluar
+                <a href="{{ route('surat-keluar.index') }}" class="nav-link {{ request()->routeIs('surat-keluar.*') ? 'active' : '' }}">
+                    <i class="fa fa-paper-plane"></i> Surat Keluar
                 </a>
+                <div class="menu-label">Kerja Sama & Dokumen</div>
                 <a href="{{ route('mitra.index') }}" class="nav-link {{ request()->routeIs('mitra.*') ? 'active' : '' }}">
                     <i class="fa fa-handshake"></i> Kerja Sama Industri
                 </a>
@@ -522,6 +525,8 @@
                 <a href="{{ route('sertifikat.index') }}" class="nav-link {{ request()->routeIs('sertifikat.*') ? 'active' : '' }}">
                     <i class="fa fa-certificate"></i> Generate Sertifikat
                 </a>
+
+                <div class="menu-label">Administrasi</div>
                 <a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
                     <i class="fa fa-users"></i> Manajemen User
                 </a>
@@ -627,6 +632,14 @@
     <script>
         $.ajaxSetup({
             headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
+        });
+
+        // Modal berisi form: tutup hanya lewat tombol, bukan klik luar / Esc
+        document.addEventListener('show.bs.modal', function (e) {
+            if (!e.target.querySelector('form')) return;
+            const m = bootstrap.Modal.getInstance(e.target);
+            m._config.backdrop = 'static';
+            m._config.keyboard = false;
         });
 
         /* =================================================================

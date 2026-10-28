@@ -158,7 +158,7 @@ class DokumenKerjasamaController extends Controller
         $data['dibuat_oleh'] = auth()->id();
 
         if ($request->hasFile('file')) {
-            $data['file_path'] = $request->file('file')->store('mou-pks', 'public');
+            $data['file_path'] = $request->file('file')->store('mou-pks', 'local');
         }
 
         DokumenKerjasama::create($data);
@@ -181,10 +181,10 @@ class DokumenKerjasamaController extends Controller
 
         if ($request->hasFile('file') || $request->boolean('hapus_file')) {
             if ($dokumen->file_path) {
-                Storage::disk('public')->delete($dokumen->file_path);
+                Storage::disk('local')->delete($dokumen->file_path);
             }
             $data['file_path'] = $request->hasFile('file')
-                ? $request->file('file')->store('mou-pks', 'public')
+                ? $request->file('file')->store('mou-pks', 'local')
                 : null;
         }
 
@@ -198,7 +198,7 @@ class DokumenKerjasamaController extends Controller
         abort_unless($this->bolehUbah(), 403);
 
         if ($mou_pk->file_path) {
-            Storage::disk('public')->delete($mou_pk->file_path);
+            Storage::disk('local')->delete($mou_pk->file_path);
         }
         $mou_pk->delete();
 

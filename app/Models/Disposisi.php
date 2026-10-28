@@ -51,7 +51,7 @@ class Disposisi extends Model
 
     public function getFileHasilUrlAttribute(): ?string
     {
-        return $this->file_hasil ? asset('storage/' . $this->file_hasil) : null;
+        return $this->file_hasil ? route('berkas', $this->file_hasil) : null;
     }
 
     public function suratMasuk()

@@ -128,7 +128,7 @@ class SuratMasukController extends Controller
         $data = $validator->validated();
 
         if ($request->hasFile('file_surat')) {
-            $data['file_path'] = $request->file('file_surat')->store('surat-masuk', 'public');
+            $data['file_path'] = $request->file('file_surat')->store('surat-masuk', 'local');
         }
         unset($data['file_surat']);
 
@@ -211,9 +211,9 @@ class SuratMasukController extends Controller
 
             if ($request->hasFile('file_surat')) {
                 if ($surat->file_path) {
-                    Storage::disk('public')->delete($surat->file_path);
+                    Storage::disk('local')->delete($surat->file_path);
                 }
-                $data['file_path'] = $request->file('file_surat')->store('surat-masuk', 'public');
+                $data['file_path'] = $request->file('file_surat')->store('surat-masuk', 'local');
             }
             unset($data['file_surat']);
 
@@ -248,7 +248,7 @@ class SuratMasukController extends Controller
             }
 
             if ($surat->file_path) {
-                Storage::disk('public')->delete($surat->file_path);
+                Storage::disk('local')->delete($surat->file_path);
             }
             $surat->delete();
 

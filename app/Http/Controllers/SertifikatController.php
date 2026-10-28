@@ -443,7 +443,7 @@ class SertifikatController extends Controller
                     $sertifikat->file_path
                 ) {
 
-                    Storage::disk('public')
+                    Storage::disk('local')
                         ->delete(
                             $fileLama
                         );
@@ -671,8 +671,7 @@ class SertifikatController extends Controller
             $sertifikat->refresh();
 
             return response()->file(
-                storage_path(
-                    'app/public/' .
+                Storage::disk('local')->path(
                     $sertifikat->file_path
                 )
             );
@@ -715,7 +714,7 @@ class SertifikatController extends Controller
                 $sertifikat->file_path
             ) {
 
-                Storage::disk('public')
+                Storage::disk('local')
                     ->delete(
                         $sertifikat->file_path
                     );
@@ -1087,7 +1086,7 @@ class SertifikatController extends Controller
             ) .
             '.pdf';
 
-        Storage::disk('public')
+        Storage::disk('local')
             ->put(
                 $path,
                 $pdf->output()

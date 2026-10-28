@@ -261,7 +261,7 @@ class DisposisiController extends Controller
             'perihal'       => $suratMasuk->perihal,
             'tanggal_surat' => $suratMasuk->tanggal_surat,
             'catatan'       => $disposisiKepsek->catatan ?? null,
-            'pdf_url'       => $suratMasuk->file_path ? asset('storage/' . $suratMasuk->file_path) : null,
+            'pdf_url'       => $suratMasuk->file_path ? route('berkas', $suratMasuk->file_path) : null,
             'status'        => $disposisiKepsek->status ?? null,
             'status_label'  => $disposisiKepsek->status_label ?? null,
             'alasan'        => $disposisiKepsek->alasan ?? null,
@@ -535,7 +535,7 @@ public function myDisposisi()
 
             if ($request->hasFile('file_hasil')) {
                 $data['file_hasil'] = $request->file('file_hasil')
-                    ->store('disposisi-hasil', 'public');
+                    ->store('disposisi-hasil', 'local');
             }
         }
 

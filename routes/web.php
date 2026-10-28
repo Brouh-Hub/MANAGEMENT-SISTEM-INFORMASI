@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 
 // Login
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BerkasController;
 
 // Admin
 use App\Http\Controllers\Admin\DashboardController;
@@ -71,6 +72,11 @@ Route::prefix('admin')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout'])->name('admin.logout');
 
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
+
+        // Berkas surat (disk private) — hanya bisa dibuka setelah login
+        Route::get('/berkas/{path}', [BerkasController::class, 'show'])
+            ->where('path', '.+')
+            ->name('berkas');
 
         // Profil — semua user yang login
         Route::get('/profil', [ProfilController::class, 'show'])->name('profil.show');
@@ -200,8 +206,6 @@ Route::prefix('admin')->group(function () {
                 ->except(['create', 'edit', 'show']);
 
             // ---------- Surat Keluar ----------
-            Route::get('/surat-keluar/create', [SuratKeluarController::class, 'create'])
-                ->name('surat-keluar.create');
             // Generate nomor surat (TU memasukkan password sendiri)
             Route::post('/surat-keluar/generate-nomor', [SuratKeluarController::class, 'generateNomor'])
                 ->name('surat-keluar.generate-nomor');

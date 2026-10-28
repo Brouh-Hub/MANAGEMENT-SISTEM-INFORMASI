@@ -221,7 +221,7 @@ class MitraController extends Controller
 
             // Berkas dokumen MoU/PKS milik mitra ini (datanya ikut terhapus lewat foreign key)
             foreach ($mitra->dokumenKerjasama()->whereNotNull('file_path')->pluck('file_path') as $berkas) {
-                Storage::disk('public')->delete($berkas);
+                Storage::disk('local')->delete($berkas);
             }
 
             $mitra->delete();

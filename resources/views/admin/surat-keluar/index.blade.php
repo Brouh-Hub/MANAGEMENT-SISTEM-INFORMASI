@@ -620,19 +620,3 @@ $('#table tbody').on('click', '.btn-ajukan', async function () {
     });
     </script>
     @endpush
-
-    @push('scripts')
-    <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const params = new URLSearchParams(window.location.search);
-
-        if (params.get('create') === '1') {
-            const tombolTambah = document.querySelector('[data-bs-target="#modal-create"]');
-
-            if (tombolTambah) {
-                tombolTambah.click();
-            }
-        }
-    });
-    </script>
-    @endpush

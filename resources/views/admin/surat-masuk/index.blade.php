@@ -192,7 +192,7 @@ $(document).ready(function () {
             return;
         }
 
-        const url = `{{ asset('storage') }}/${filePath}`;
+        const url = `{{ url('admin/berkas') }}/${filePath}`;
         const ext = filePath.split('.').pop().toLowerCase();
 
         $('#detail-file-open').attr('href', url);

@@ -154,26 +154,6 @@ class SuratKeluarController extends Controller
         ]);
     }
 
-    public function create()
-    {
-        $templates = TemplateSurat::with([
-            'fields' => function ($query) {
-                $query->where('is_active', true)
-                    ->orderBy('urutan')
-                    ->orderBy('id');
-            }
-        ])
-            ->where('is_active', true)
-            ->orderBy('nama_template')
-            ->get();
-
-        return view('admin.surat-keluar.create', [
-            'title' => 'Tambah Surat Keluar',
-            'subtitle' => 'Pilih template dan isi data surat keluar.',
-            'templates' => $templates,
-        ]);
-    }
-
     /**
      * Ambil hanya input custom yang key-nya memang field custom aktif
      */
@@ -291,7 +271,7 @@ class SuratKeluarController extends Controller
             $data['data_tambahan'] = $dataTambahan;
 
             if ($request->hasFile('file_surat')) {
-                $data['file_path'] = $request->file('file_surat')->store('surat-keluar', 'public');
+                $data['file_path'] = $request->file('file_surat')->store('surat-keluar', 'local');
             }
 
             unset(
@@ -367,9 +347,9 @@ class SuratKeluarController extends Controller
 
             if ($request->hasFile('file_surat')) {
                 if ($surat->file_path) {
-                    Storage::disk('public')->delete($surat->file_path);
+                    Storage::disk('local')->delete($surat->file_path);
                 }
-                $data['file_path'] = $request->file('file_surat')->store('surat-keluar', 'public');
+                $data['file_path'] = $request->file('file_surat')->store('surat-keluar', 'local');
             }
             unset($data['file_surat'], $data['custom'], $data['template_data']);
 
@@ -415,7 +395,7 @@ class SuratKeluarController extends Controller
             }
 
             if ($surat->file_path) {
-                Storage::disk('public')->delete($surat->file_path);
+                Storage::disk('local')->delete($surat->file_path);
             }
             $surat->delete();
 
@@ -472,7 +452,7 @@ class SuratKeluarController extends Controller
 
         $directory = 'surat-keluar/generated';
 
-        Storage::disk('public')->makeDirectory(
+        Storage::disk('local')->makeDirectory(
             $directory
         );
 
@@ -480,7 +460,7 @@ class SuratKeluarController extends Controller
 
         $path = $directory . '/' . $filename;
 
-        Storage::disk('public')->put(
+        Storage::disk('local')->put(
             $path,
             $pdf->output()
         );
@@ -527,7 +507,7 @@ class SuratKeluarController extends Controller
 
         if (
             !$surat->file_path ||
-            !Storage::disk('public')->exists($surat->file_path)
+            !Storage::disk('local')->exists($surat->file_path)
         ) {
             abort(404, 'PDF surat belum tersedia.');
         }
@@ -540,7 +520,7 @@ class SuratKeluarController extends Controller
 
         $filename = 'surat-' . trim($nomor, '-') . '.pdf';
 
-        return Storage::disk('public')->download(
+        return Storage::disk('local')->download(
             $surat->file_path,
             $filename
         );
@@ -550,12 +530,12 @@ class SuratKeluarController extends Controller
     {
         $surat = SuratKeluar::findOrFail($id);
 
-        if (!$surat->file_path || !Storage::disk('public')->exists($surat->file_path)) {
+        if (!$surat->file_path || !Storage::disk('local')->exists($surat->file_path)) {
             abort(404, 'File surat belum diunggah.');
         }
 
         // ditampilkan inline (bukan download), mime type otomatis
-        return Storage::disk('public')->response($surat->file_path);
+        return Storage::disk('local')->response($surat->file_path);
     }
 
     /*
@@ -677,7 +657,7 @@ class SuratKeluarController extends Controller
                 $surat->refresh();
             }
 
-            if (! $surat->file_path || ! Storage::disk('public')->exists($surat->file_path)) {
+            if (! $surat->file_path || ! Storage::disk('local')->exists($surat->file_path)) {
                 return response()->json([
                     'status'  => 'error',
                     'message' => 'Buat PDF surat terlebih dahulu sebelum mengajukan persetujuan.',

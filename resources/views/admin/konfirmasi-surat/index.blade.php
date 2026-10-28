@@ -80,7 +80,7 @@
                                     'jenis'   => 'masuk',
                                     'id'      => $s->id,
                                     'judul'   => $s->perihal,
-                                    'file'    => $s->file_path ? asset('storage/' . $s->file_path) : null,
+                                    'file'    => $s->file_path ? route('berkas', $s->file_path) : null,
                                     'baris'   => [
                                         'No. Agenda'      => $s->no_agenda,
                                         'Nomor Surat'     => $s->nomor_surat,
