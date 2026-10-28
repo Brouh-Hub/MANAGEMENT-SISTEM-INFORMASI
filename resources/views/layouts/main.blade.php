@@ -511,6 +511,9 @@
                 <a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
                     <i class="fa fa-users"></i> Manajemen User
                 </a>
+                <a href="{{ route('log-login.index') }}" class="nav-link {{ request()->routeIs('log-login.*') ? 'active' : '' }}">
+                    <i class="fa fa-clock-rotate-left"></i> Log Aktivitas
+                </a>
                 <a href="{{ route('pengaturan-surat.index') }}" class="nav-link {{ request()->routeIs('pengaturan-surat.*') ? 'active' : '' }}">
                     <i class="fa fa-stamp"></i> Pengaturan Surat
                 </a>

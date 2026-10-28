@@ -9,6 +9,7 @@ use App\Http\Controllers\CaptchaController;
 // Admin
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\LogLoginController;
 use App\Http\Controllers\Admin\ProfilController;
 use App\Http\Controllers\Admin\PengaturanSuratController;
 use App\Http\Controllers\Admin\MitraController;
@@ -191,6 +192,9 @@ Route::prefix('admin')->group(function () {
             // ---------- Manajemen User ----------
             Route::resource('users', UserController::class)
                 ->except(['create', 'edit', 'show']);
+
+            // ---------- Log Aktivitas Login ----------
+            Route::get('/log-login', [LogLoginController::class, 'index'])->name('log-login.index');
 
             // ---------- Surat Masuk ----------
             // Perkiraan No. Agenda berikutnya (form Tambah surat masuk)
