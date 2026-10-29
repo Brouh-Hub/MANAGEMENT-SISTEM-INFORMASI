@@ -44,7 +44,7 @@
 <body>
 
 @if(!empty($watermark))
-<div style="position: fixed; top: 380px; left: 0; width: 100%; text-align: center; font-size: 48pt; font-weight: bold; color: #cccccc;">DRAFT<br><span style="font-size: 20pt;">BELUM DISAHKAN</span></div>
+<div style="position: fixed; top: 380px; left: 0; width: 100%; text-align: center; font-size: 48pt; font-weight: bold; color: #d32f2f; opacity: 0.3;">DRAFT<br><span style="font-size: 20pt;">BELUM DISAHKAN</span></div>
 @endif
 
 {!! $isiSurat !!}
