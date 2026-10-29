@@ -118,6 +118,14 @@ class SuratKeluarController extends Controller
                             <i class="fa fa-check"></i>
                         </a>';
                     }
+                    // TOMBOL CETAK: hanya setelah disetujui Kepala Sekolah
+                    if ($row->status === 'terbit') {
+                        $btn .= '<a href="' . route('surat-keluar.download', $row->id) . '"
+                            class="btn btn-sm btn-light text-dark"
+                            title="Cetak / Unduh">
+                            <i class="fa fa-print"></i>
+                        </a>';
+                    }
                     // TOMBOL HAPUS: hanya TU, hanya surat Draft
                     if ($adalahTu && $row->status === 'draft') {
                         $btn .= '<a href="javascript:void(0)"
@@ -366,7 +374,7 @@ class SuratKeluarController extends Controller
     public function approve(Request $request, string $id)
     {
         try {
-            $surat = SuratKeluar::findOrFail($id);
+            $surat = SuratKeluar::with('templateSurat')->findOrFail($id);
 
             if ($surat->status !== 'menunggu_approve') {
                 return response()->json(['status' => 'error', 'message' => 'Surat ini tidak sedang menunggu persetujuan.', 'data' => null], 422);
@@ -376,6 +384,12 @@ class SuratKeluarController extends Controller
                 'status'            => 'terbit',
                 'kepala_sekolah_id' => auth()->id(),
             ]);
+
+            // Buat ulang PDF tanpa watermark DRAFT.
+            $html = $surat->templateSurat
+                ? app(RenderSurat::class)->dariSurat($surat->fresh('templateSurat'))
+                : (string) $surat->isi_surat;
+            $this->simpanPdf($surat, $html);
 
             return response()->json(['status' => 'success', 'message' => 'Surat berhasil di-approve', 'data' => null], 200);
         } catch (ModelNotFoundException $e) {
@@ -437,38 +451,7 @@ class SuratKeluarController extends Controller
             ], 422);
         }
 
-        // Simpan versi tanpa base64 ke database (lebih ringan)
-        $isiTersimpan = $html;
-
-        // Logo & gambar lokal dijadikan base64 supaya tampil di DomPDF
-        $html = app(RenderSurat::class)->sematkanGambar($html);
-
-        $pdf = Pdf::loadView(
-            'admin.surat-keluar.pdf',
-            [
-                'isiSurat' => $html,
-            ]
-        )->setPaper('a4', 'portrait');
-
-        $directory = 'surat-keluar/generated';
-
-        Storage::disk('local')->makeDirectory(
-            $directory
-        );
-
-        $filename = 'surat-' . $surat->id . '.pdf';
-
-        $path = $directory . '/' . $filename;
-
-        Storage::disk('local')->put(
-            $path,
-            $pdf->output()
-        );
-
-        $surat->update([
-            'isi_surat' => $isiTersimpan,
-            'file_path' => $path,
-        ]);
+        $this->simpanPdf($surat, $html);
 
         return response()->json([
             'status' => 'success',
@@ -501,9 +484,50 @@ class SuratKeluarController extends Controller
     }
 }
 
+    private function simpanPdf(SuratKeluar $surat, string $html): void
+    {
+        // Simpan versi tanpa base64 ke database (lebih ringan)
+        $isiTersimpan = $html;
+
+        // Logo & gambar lokal dijadikan base64 supaya tampil di DomPDF
+        $html = app(RenderSurat::class)->sematkanGambar($html);
+
+        $pdf = Pdf::loadView(
+            'admin.surat-keluar.pdf',
+            [
+                'isiSurat' => $html,
+                'watermark' => $surat->status !== 'terbit',
+            ]
+        )->setPaper('a4', 'portrait');
+
+        $directory = 'surat-keluar/generated';
+
+        Storage::disk('local')->makeDirectory(
+            $directory
+        );
+
+        $filename = 'surat-' . $surat->id . '.pdf';
+
+        $path = $directory . '/' . $filename;
+
+        Storage::disk('local')->put(
+            $path,
+            $pdf->output()
+        );
+
+        $surat->update([
+            'isi_surat' => $isiTersimpan,
+            'file_path' => $path,
+        ]);
+    }
+
     public function download($id)
     {
         $surat = SuratKeluar::findOrFail($id);
+
+        if ($surat->status !== 'terbit') {
+            abort(403, 'Surat belum disetujui Kepala Sekolah.');
+        }
 
         if (
             !$surat->file_path ||

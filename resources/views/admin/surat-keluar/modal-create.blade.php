@@ -1057,13 +1057,13 @@
 
                     <button
                         type="button"
-                        id="btn-save-download"
+                        id="btn-save-ajukan"
                         class="btn btn-success"
                     >
 
-                        <i class="fa fa-download me-1"></i>
+                        <i class="fa fa-paper-plane me-1"></i>
 
-                        Simpan & Unduh PDF
+                        Simpan & Ajukan
 
                     </button>
 
@@ -1993,10 +1993,10 @@ $(document).ready(function () {
 
 
     /* =========================================================
-       SIMPAN & DOWNLOAD PDF
+       SIMPAN & AJUKAN
        ========================================================= */
 
-    $('#btn-save-download').on(
+    $('#btn-save-ajukan').on(
         'click',
         function () {
 

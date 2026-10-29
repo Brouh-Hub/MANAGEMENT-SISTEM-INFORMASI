@@ -239,9 +239,9 @@ $('#table tbody').on('click', '.btn-ajukan', async function () {
     });
 });
 
-        // ================= SIMPAN & UNDUH PDF =================
+        // ================= SIMPAN & AJUKAN =================
 
-    $('#btn-save-download').on('click', function () {
+    $('#btn-save-ajukan').on('click', function () {
 
         const form = document.getElementById('form-create');
 
@@ -265,7 +265,7 @@ $('#table tbody').on('click', '.btn-ajukan', async function () {
 
         button
             .prop('disabled', true)
-            .html('<i class="fa fa-spinner fa-spin me-1"></i> Membuat PDF...');
+            .html('<i class="fa fa-spinner fa-spin me-1"></i> Menyimpan & mengajukan...');
 
         $('.error-msg').text('');
 
@@ -304,25 +304,31 @@ $('#table tbody').on('click', '.btn-ajukan', async function () {
                         _token: csrf
                     },
 
-                    success: function (pdfResponse) {
+                    success: function () {
 
-                        table.ajax.reload(null, false);
+                        // 3. Ajukan ke Kepala TU.
+                        $.ajax({
+                            url: `${baseUrl}/${id}/ajukan`,
+                            method: 'POST',
+                            data: { _token: csrf },
 
-                        $('#form-create').trigger('reset');
-                        $('#modal-create').modal('hide');
+                            success: function (ajukanResponse) {
+                                alert(ajukanResponse.message);
+                            },
 
-                        if (pdfResponse.download_url) {
+                            error: function (xhr) {
+                                alert(
+                                    (xhr.responseJSON?.message ?? 'Gagal mengajukan surat.') +
+                                    '\n\nSurat sudah tersimpan sebagai Draft. Ajukan lewat ikon pesawat kertas di tabel.'
+                                );
+                            },
 
-                            // 3. Langsung unduh PDF.
-                            window.location.href =
-                                pdfResponse.download_url;
-
-                        } else {
-
-                            alert(
-                                'PDF berhasil dibuat, tetapi URL download tidak ditemukan.'
-                            );
-                        }
+                            complete: function () {
+                                table.ajax.reload(null, false);
+                                $('#form-create').trigger('reset');
+                                $('#modal-create').modal('hide');
+                            }
+                        });
                     },
 
                     error: function (xhr) {
@@ -483,7 +489,9 @@ $('#table tbody').on('click', '.btn-ajukan', async function () {
             const versi = encodeURIComponent(detail.updated_at ?? Date.now());
 
             $('#detail-file-open').attr('href', `${base}/preview?v=${versi}`);
-            $('#detail-file-download').attr('href', `${base}/download`);
+            $('#detail-file-download')
+                .attr('href', `${base}/download`)
+                .toggle(detail.status === 'terbit');
             $aksi.attr('style', '');
 
             $box.html($('<iframe>', {
