@@ -49,9 +49,10 @@ class TemplateSuratStandarSeeder extends Seeder
             </table>
         </td>
         <td style="width:40%; vertical-align:top;">
-            {{kota}}, {{tanggal_surat}}<br><br>
+            {{kota}}, {{tanggal_surat}}<br>
+            Kepada :<br>
             Yth. {{tujuan}}<br>
-            di<br>
+            di –<br>
             <span style="padding-left:20px;">{{alamat_tujuan}}</span>
         </td>
     </tr>
@@ -96,14 +97,17 @@ HTML,
                 <tr><td style="vertical-align:top;">Hal</td><td style="vertical-align:top;">:</td><td>{{perihal}}</td></tr>
             </table>
         </td>
-        <td style="width:40%; vertical-align:top;">
-            {{kota}}, {{tanggal_surat}}<br><br>
-            Yth. {{tujuan}}<br>
-            di<br>
-            <span style="padding-left:20px;">{{alamat_tujuan}}</span>
+        <td style="width:40%; vertical-align:top; text-align:right;">
+            {{kota}}, {{tanggal_surat}}
         </td>
     </tr>
 </table>
+
+<div style="margin:-8px 0 24px;">
+    Yth. {{tujuan}}<br>
+    di<br>
+    {{alamat_tujuan}}
+</div>
 
 <div style="text-align:justify; text-indent:1.2cm;">{{isi_surat}}</div>
 <table style="border-collapse:collapse; margin:4px 0 16px 1.2cm;">
@@ -194,8 +198,11 @@ HTML,
 Undang-Undang Nomor 14 Tahun 2005 tentang Guru dan Dosen;
 Peraturan Pemerintah Nomor 17 Tahun 2010 tentang Pengelolaan dan Penyelenggaraan Pendidikan;
 Peraturan Pemerintah Nomor 4 Tahun 2022 tentang Perubahan Peraturan Pemerintah Nomor 57 Tahun 2021 tentang Standar Nasional Pendidikan;
+Peraturan Menteri PAN dan Reformasi Birokrasi No. 16 Tahun 2009 tentang Jabatan Fungsional Guru dan Angka Kreditnya;
+Permendikbud RI No. 53 Tahun 2018 tentang Pemenuhan Beban Kerja Guru, Kepala Sekolah dan Pengawas Sekolah;
 Peraturan Menteri PAN dan Reformasi Birokrasi No. 21 Tahun 2024 tentang Jabatan Fungsional Guru.'],
-                ['key' => 'keputusan_diktum', 'label' => 'Isi Keputusan (satu baris satu diktum, otomatis jadi KESATU, KEDUA, ...)', 'type' => 'textarea', 'is_required' => true, 'default_value' => 'Segala biaya yang timbul akibat pelaksanaan keputusan ini dibebankan pada anggaran yang sesuai;
+                ['key' => 'keputusan_diktum', 'label' => 'Isi Keputusan (satu baris satu diktum, otomatis jadi KESATU, KEDUA, ...)', 'type' => 'textarea', 'is_required' => true, 'default_value' => 'Isi keputusan pokok, seperti tersebut pada lampiran Surat Keputusan ini;
+Segala biaya yang timbul akibat pelaksanaan keputusan ini dibebankan pada anggaran yang sesuai;
 Apabila terdapat kekeliruan dalam keputusan ini, akan dibetulkan sebagaimana mestinya;
 Keputusan ini berlaku sejak tanggal ditetapkan.'],
                 ['key' => 'tembusan_daftar', 'label' => 'Tembusan (opsional, satu baris satu tujuan)', 'type' => 'textarea', 'is_required' => false, 'default_value' => 'Kepala Dinas Pendidikan Provinsi Kepulauan Riau

@@ -126,7 +126,7 @@ class RenderSurat
 
         if ($jenis === 'daftarsiswa') {
             $html = '<table style="border-collapse:collapse; margin:4px 0 8px;">'
-                . '<tr><td style="width:30px; ' . $sel . '">No</td><td style="width:300px; ' . $sel . '">Nama</td><td style="' . $sel . '">Kelas</td></tr>';
+                . '<tr><td style="width:30px; ' . $sel . '">No</td><td style="width:300px; ' . $sel . '">Nama :</td><td style="' . $sel . '">Kelas :</td></tr>';
 
             foreach ($baris as $i => $b) {
                 $kolom = array_map('trim', explode('|', $b));
