@@ -90,7 +90,9 @@ class SuratMasukController extends Controller
                     $btn = '<div class="btn-group">';
                     $btn .= '<a href="javascript:void(0)" class="btn-detail btn btn-sm btn-light" data-detail="' . $detail . '" title="Lihat"><i class="fa fa-eye"></i></a>';
                     $btn .= '<a href="javascript:void(0)" class="btn-update btn btn-sm btn-light" data-detail="' . $detail . '" data-id="' . $row->id . '" title="Ubah"><i class="fa fa-pen"></i></a>';
-                    $btn .= '<a href="javascript:void(0)" class="btn-delete btn btn-sm btn-light text-danger" data-id="' . $row->id . '" title="Hapus"><i class="fa fa-trash"></i></a>';
+                    if (in_array($row->status_konfirmasi, ['menunggu', 'dikembalikan'], true)) {
+                        $btn .= '<a href="javascript:void(0)" class="btn-delete btn btn-sm btn-light text-danger" data-id="' . $row->id . '" title="Hapus"><i class="fa fa-trash"></i></a>';
+                    }
                     $btn .= '</div>';
 
                     return $btn;
